@@ -1,0 +1,21 @@
+{
+  "name": "WebfullSec — Secretária AI & CRM Pessoal",
+  "short_name": "WebfullSec",
+  "description": "Sistema de gestão de tempo, projetos e prevenção de burnout. Secretária Executiva AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060b18",
+  "theme_color": "#060b18",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

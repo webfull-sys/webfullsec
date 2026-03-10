@@ -2,10 +2,10 @@
  * ============================================
  * WebfullSec — Layout Root (App Shell)
  * Autoria: Webfull (https://webfull.com.br)
- * Versão: 1.0.0
+ * Versão: 2.1.0
  * ============================================
  * Layout raiz que encapsula Sidebar + Header + Content.
- * Inclui SEO, fontes e meta tags globais.
+ * Inclui SEO, fontes, PWA manifest e meta tags globais.
  */
 
 import './globals.css';
@@ -18,8 +18,15 @@ export const metadata = {
   robots: 'noindex, nofollow', // Sistema privado
   viewport: 'width=device-width, initial-scale=1',
   themeColor: '#060b18',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
+    apple: '/icon-512.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'WebfullSec',
   },
 };
 
@@ -29,6 +36,8 @@ export default function RootLayout({ children }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="color-scheme" content="dark" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body>
         {/* Skip link para acessibilidade */}
@@ -40,3 +49,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+
