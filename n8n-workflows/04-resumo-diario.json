@@ -1,0 +1,178 @@
+{
+  "name": "📊 Resumo Diário — WebfullSec",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 17,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "c4a4a4a4-4444-4444-8444-444444444401",
+      "name": "Cron 17:30 Seg-Sex",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://webfullsec.webfullvps.com.br/api/dashboard/stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c4a4a4a4-4444-4444-8444-444444444402",
+      "name": "Buscar Stats do Dia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://webfullsec.webfullvps.com.br/api/ai/burnout",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c4a4a4a4-4444-4444-8444-444444444403",
+      "name": "Buscar Score Burnout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByPosition": true,
+        "options": {}
+      },
+      "id": "c4a4a4a4-4444-4444-8444-444444444404",
+      "name": "Combinar Dados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/webhooks/inbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"📊 Resumo do Dia — {{ $now.format('dd/MM/yyyy') }}\",\n  \"content\": \"✅ Concluídas: {{ $json.completedToday || 0 }} | 📋 Hoje: {{ $json.todayTasks || 0 }} | ⚠️ Atrasadas: {{ $json.overdueTasks || 0 }} | 📥 Inbox: {{ $json.inboxUnread || 0 }} | 📁 Projetos: {{ $json.totalProjects || 0 }} | 🛡️ Burnout: {{ $json.burnoutScore || 0 }}/100 ({{ $json.burnoutLevel || 'low' }}) | ⏱️ Carga: {{ $json.todayEstimatedMinutes || 0 }}min\",\n  \"source\": \"webhook\",\n  \"priority\": 1\n}",
+        "options": {}
+      },
+      "id": "c4a4a4a4-4444-4444-8444-444444444405",
+      "name": "Enviar Resumo para Inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 400]
+    }
+  ],
+  "connections": {
+    "Cron 17:30 Seg-Sex": {
+      "main": [
+        [
+          {
+            "node": "Buscar Stats do Dia",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar Score Burnout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Stats do Dia": {
+      "main": [
+        [
+          {
+            "node": "Combinar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Score Burnout": {
+      "main": [
+        [
+          {
+            "node": "Combinar Dados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combinar Dados": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resumo para Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    {
+      "name": "WebfullSec"
+    }
+  ]
+}

@@ -1,0 +1,302 @@
+{
+  "name": "📥 06 - Caixa de Entrada Universal — WebfullSec",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inbox/universal",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666601",
+      "name": "Webhook (Cmd+K / API)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 200],
+      "webhookId": "webfullsec-omni-inbox-webhook"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666602",
+      "name": "Telegram Bot (Áudio/Texto)",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "options": {}
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666603",
+      "name": "Merge Entradas",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const item = $input.first().json;\n\nlet source = 'unknown';\nlet rawContent = '';\n\n// Detecta Webhook do WebfullSec (POST /api/agents/chat)\nif (item.body && item.body.source === 'webfullsec_chat_agent') {\n  source = 'webfullsec';\n  rawContent = item.body.message;\n}\n// Detecta Mensagem do Telegram\nelse if (item.message && item.message.text) {\n  source = 'telegram';\n  rawContent = item.message.text;\n}\n\nreturn [{\n  json: {\n    source: source,\n    rawContent: rawContent,\n    originalData: item\n  }\n}];"
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666604",
+      "name": "Padronizar Origem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666605",
+      "name": "OpenAI/Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmOpenAi",
+      "typeVersion": 1,
+      "position": [920, 440],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL",
+          "name": "OpenAI Api Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.rawContent }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Você é a Secretária Executiva de alto nível de uma agência. Seu objetivo é ler mensagens puras e extrair dados para criar tarefas. Estime o tempo real (páginas de site ~120m, mixagem ~60m, automação ~90m). Se não houver contexto, 30m. Somente urgentes caso o cliente implore ou use a palavra 'urgente/caiu/pra hoje'. Prioridades válidas: Baixa, Media, Alta, Urgente."
+        }
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666606",
+      "name": "AI Triagem (Structured Output)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "jsonSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"titulo\": {\n      \"type\": \"string\"\n    },\n    \"tempo_estimado_minutos\": {\n      \"type\": \"number\"\n    },\n    \"prioridade\": {\n      \"type\": \"string\",\n      \"enum\": [\"Baixa\", \"Media\", \"Alta\", \"Urgente\"]\n    }\n  },\n  \"required\": [\"titulo\", \"tempo_estimado_minutos\", \"prioridade\"]\n}"
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666607",
+      "name": "JSON Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1,
+      "position": [1080, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/webhooks/inbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.output.titulo }}\",\n  \"content\": \"Original: {{ $('Padronizar Origem').item.json.rawContent }} | Estimativa: {{ $json.output.tempo_estimado_minutos }}m\",\n  \"source\": \"{{ $('Padronizar Origem').item.json.source }}_ai_agent\",\n  \"priority\": {{ $json.output.prioridade === 'Urgente' ? 4 : $json.output.prioridade === 'Alta' ? 3 : 2 }}\n}",
+        "options": {}
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666608",
+      "name": "Salvar no PostgreSQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Padronizar Origem').item.json.originalData.message.chat.id }}",
+        "text": "=✅ A tarefa \"{{ $('AI Triagem (Structured Output)').item.json.output.titulo }}\" foi salva na sua Inbox do WebfullSec! ({{ $('AI Triagem (Structured Output)').item.json.output.tempo_estimado_minutos }}m)",
+        "additionalFields": {}
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666609",
+      "name": "Telegram Feedback",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1540, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "fdb",
+              "leftValue": "={{ $('Padronizar Origem').item.json.source }}",
+              "rightValue": "telegram",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "c6a6a6a6-1666-4666-8666-666666666610",
+      "name": "Veio do Telegram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {},
+      "id": "c6a6a6a6-1666-4666-8666-666666666611",
+      "name": "Resposta HTTP / Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 100]
+    }
+  ],
+  "connections": {
+    "Webhook (Cmd+K / API)": {
+      "main": [
+        [
+          {
+            "node": "Merge Entradas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Bot (Áudio/Texto)": {
+      "main": [
+        [
+          {
+            "node": "Merge Entradas",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Entradas": {
+      "main": [
+        [
+          {
+            "node": "Padronizar Origem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Padronizar Origem": {
+      "main": [
+        [
+          {
+            "node": "AI Triagem (Structured Output)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI/Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Triagem (Structured Output)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Triagem (Structured Output)",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Triagem (Structured Output)": {
+      "main": [
+        [
+          {
+            "node": "Salvar no PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar no PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Veio do Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Veio do Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Telegram Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resposta HTTP / Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    {
+      "name": "WebfullSec - Agentes"
+    }
+  ]
+}

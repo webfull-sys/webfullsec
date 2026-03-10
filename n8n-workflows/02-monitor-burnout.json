@@ -1,0 +1,231 @@
+{
+  "name": "🛡️ Monitor de Burnout — WebfullSec",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "c2a2a2a2-2222-4222-8222-222222222201",
+      "name": "A cada 2h (horário comercial)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "hora-check",
+              "leftValue": "={{ $now.hour }}",
+              "rightValue": "9",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "hora-check-2",
+              "leftValue": "={{ $now.hour }}",
+              "rightValue": "18",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            },
+            {
+              "id": "dia-check",
+              "leftValue": "={{ $now.weekday }}",
+              "rightValue": "6",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ]
+        }
+      },
+      "id": "c2a2a2a2-2222-4222-8222-222222222202",
+      "name": "É horário comercial?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://webfullsec.webfullvps.com.br/api/ai/burnout",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c2a2a2a2-2222-4222-8222-222222222203",
+      "name": "Verificar Burnout Score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "score-critical",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": "70",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "c2a2a2a2-2222-4222-8222-222222222204",
+      "name": "Score >= 70?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/webhooks/inbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"🛡️ Alerta de Burnout — Score: {{ $json.score }}/100 ({{ $json.level }})\",\n  \"content\": \"Fatores: Carga diária {{ $json.factors.dailyLoad.score }}/40, Atrasados {{ $json.factors.overdueTasks.score }}/20, Intensidade {{ $json.factors.intenseDays.score }}/15. Recomendação: {{ $json.recommendation }}\",\n  \"source\": \"webhook\",\n  \"priority\": 4\n}",
+        "options": {}
+      },
+      "id": "c2a2a2a2-2222-4222-8222-222222222205",
+      "name": "Criar Alerta na Inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 100]
+    },
+    {
+      "parameters": {},
+      "id": "c2a2a2a2-2222-4222-8222-222222222206",
+      "name": "Score Normal ✅",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {},
+      "id": "c2a2a2a2-2222-4222-8222-222222222207",
+      "name": "Fora do Expediente",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 400]
+    }
+  ],
+  "connections": {
+    "A cada 2h (horário comercial)": {
+      "main": [
+        [
+          {
+            "node": "É horário comercial?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "É horário comercial?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Burnout Score",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fora do Expediente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Burnout Score": {
+      "main": [
+        [
+          {
+            "node": "Score >= 70?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 70?": {
+      "main": [
+        [
+          {
+            "node": "Criar Alerta na Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Score Normal ✅",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    {
+      "name": "WebfullSec"
+    }
+  ]
+}

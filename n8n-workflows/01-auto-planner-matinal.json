@@ -1,0 +1,179 @@
+{
+  "name": "🌅 Auto Planner Matinal — WebfullSec",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 55
+            }
+          ]
+        }
+      },
+      "id": "c1a1a1a1-1111-4111-8111-111111111101",
+      "name": "Cron 08:55 Seg-Sex",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/ai/planner",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "date",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c1a1a1a1-1111-4111-8111-111111111102",
+      "name": "Planejar Dia (AI Planner)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "condition-burnout",
+              "leftValue": "={{ $json.burnoutScore }}",
+              "rightValue": "70",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ]
+        }
+      },
+      "id": "c1a1a1a1-1111-4111-8111-111111111103",
+      "name": "Burnout >= 70?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/webhooks/inbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"🔴 ALERTA DE BURNOUT — Score: {{ $json.burnoutScore }}/100\",\n  \"content\": \"O Guardião do Burnout detectou risco elevado. {{ $json.recommendation }}. Reduza a carga de trabalho e faça uma pausa.\",\n  \"source\": \"webhook\",\n  \"priority\": 4\n}",
+        "options": {}
+      },
+      "id": "c1a1a1a1-1111-4111-8111-111111111104",
+      "name": "Enviar Alerta Burnout",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {},
+      "id": "c1a1a1a1-1111-4111-8111-111111111105",
+      "name": "Dia Planejado ✅",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [920, 400]
+    }
+  ],
+  "connections": {
+    "Cron 08:55 Seg-Sex": {
+      "main": [
+        [
+          {
+            "node": "Planejar Dia (AI Planner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planejar Dia (AI Planner)": {
+      "main": [
+        [
+          {
+            "node": "Burnout >= 70?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Burnout >= 70?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta Burnout",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dia Planejado ✅",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    {
+      "name": "WebfullSec"
+    }
+  ]
+}

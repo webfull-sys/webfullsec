@@ -1,0 +1,185 @@
+{
+  "name": "⚠️ Alerta de Tarefas Atrasadas — WebfullSec",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "id": "c5a5a5a5-5555-4555-8555-555555555501",
+      "name": "Cron 09:15 Seg-Sex",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://webfullsec.webfullvps.com.br/api/tasks?overdue=true&limit=20",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c5a5a5a5-5555-4555-8555-555555555502",
+      "name": "Buscar Tarefas Atrasadas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "id": "tem-atrasadas",
+              "leftValue": "={{ $json.total }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        }
+      },
+      "id": "c5a5a5a5-5555-4555-8555-555555555503",
+      "name": "Tem atrasadas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Formatar lista de tarefas atrasadas\nconst data = $input.first().json;\nconst tasks = data.tasks || [];\nconst total = data.total || 0;\n\nlet list = tasks.map((t, i) => {\n  const priority = { 1: '○', 2: '◐', 3: '●', 4: '🔥' };\n  const proj = t.project?.title ? ` (${t.project.title})` : '';\n  const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : 'Sem prazo';\n  return `${priority[t.priority] || '○'} ${t.title}${proj} — Prazo: ${due}`;\n}).join('\\n');\n\nreturn [{\n  json: {\n    title: `⚠️ ${total} tarefa(s) atrasada(s)!`,\n    content: `Atenção! Você tem tarefas com o prazo vencido:\\n\\n${list}\\n\\nRevise e reorganize suas prioridades.`,\n    total: total\n  }\n}];"
+      },
+      "id": "c5a5a5a5-5555-4555-8555-555555555504",
+      "name": "Formatar Lista",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://webfullsec.webfullvps.com.br/api/webhooks/inbox",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "dev-webhook-key"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"source\": \"webhook\",\n  \"priority\": 3\n}",
+        "options": {}
+      },
+      "id": "c5a5a5a5-5555-4555-8555-555555555505",
+      "name": "Enviar Alerta Inbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1160, 200]
+    },
+    {
+      "parameters": {},
+      "id": "c5a5a5a5-5555-4555-8555-555555555506",
+      "name": "Nenhuma atrasada ✅",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [920, 400]
+    }
+  ],
+  "connections": {
+    "Cron 09:15 Seg-Sex": {
+      "main": [
+        [
+          {
+            "node": "Buscar Tarefas Atrasadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Tarefas Atrasadas": {
+      "main": [
+        [
+          {
+            "node": "Tem atrasadas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tem atrasadas?": {
+      "main": [
+        [
+          {
+            "node": "Formatar Lista",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nenhuma atrasada ✅",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Lista": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "tags": [
+    {
+      "name": "WebfullSec"
+    }
+  ]
+}

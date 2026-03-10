@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  db_vector:
+    image: ankane/pgvector
+    environment:
+      POSTGRES_USER: prisma
+      POSTGRES_PASSWORD: prisma_password
+      POSTGRES_DB: webfullsec_pg
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+volumes:
+  pgvector_data:

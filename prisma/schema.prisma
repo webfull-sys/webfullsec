@@ -9,12 +9,12 @@
 // ============================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "sqlite"
+  url        = "file:./dev.db"
 }
 
 // ============================================
@@ -372,4 +372,54 @@ model BurnoutLog {
 
   @@index([date])
   @@index([score])
+}
+
+// ============================================
+// Modelo: Agent (Super Agentes IA)
+// Especialistas virtuais (ex: Triagem, Projetos)
+// ============================================
+model Agent {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  systemPrompt    String   
+  llmModel        String   @default("gemini-2.0-flash")
+  webhookUrl      String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  interactions    AgentInteraction[]
+}
+
+// ============================================
+// Modelo: AgentInteraction (Memória Infinita)
+// Logs detalhados de cada ação do agente
+// ============================================
+model AgentInteraction {
+  id              String   @id @default(cuid())
+  agentId         String
+  entityType      String   // project, task, client, inbox
+  entityId        String?
+  inputTrigger    String?   // JSON ou Texto (o que acordou o bot)
+  outputResponse  String?   // Resposta ou ação
+  createdAt       DateTime @default(now())
+
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  @@index([agentId])
+  @@index([entityType, entityId])
+}
+
+// ============================================
+// Modelo: KnowledgeBase (Base de Conhecimento RAG)
+// Documentos, SOPs e anotações vetorizadas
+// ============================================
+model KnowledgeBase {
+  id              String   @id @default(cuid())
+  title           String
+  content         String   
+  embeddingStr    String?   // Simulação local de vetor
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
