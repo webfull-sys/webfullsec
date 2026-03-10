@@ -11,25 +11,25 @@ Este workflow deve ser executado **sempre que alterações significativas forem 
 1. Verificar se há alterações pendentes no repositório local:
 // turbo
 ```bash
-cd c:\Users\LuizFerreira\Downloads\WebfullSec && git status --short
+git status --short
 ```
 
 2. Se houver alterações, adicionar todos os arquivos modificados ao staging:
 // turbo
 ```bash
-cd c:\Users\LuizFerreira\Downloads\WebfullSec && git add -A
+git add -A
 ```
 
 3. Criar um commit com uma mensagem descritiva sobre o que foi alterado:
 // turbo
 ```bash
-cd c:\Users\LuizFerreira\Downloads\WebfullSec && git commit -m "<mensagem descritiva do que foi alterado>"
+git commit -m "<mensagem descritiva do que foi alterado>"
 ```
 
 4. Enviar as alterações para o repositório remoto no GitHub (branch main):
 // turbo
 ```bash
-cd c:\Users\LuizFerreira\Downloads\WebfullSec && git push origin main
+git push origin main
 ```
 
 5. Informar ao usuário que o deploy foi disparado e que ele pode acompanhar o progresso no painel do Coolify.
@@ -39,4 +39,5 @@ cd c:\Users\LuizFerreira\Downloads\WebfullSec && git push origin main
 - O Coolify deve estar configurado com **Auto Deploy** ativado para detectar novos commits automaticamente.
 - Nunca commitar arquivos `.env` com segredos reais (eles já estão no `.gitignore`).
 - Sempre usar mensagens de commit descritivas em português.
+- O Cwd de todos os comandos deve ser: `c:\Users\LuizFerreira\Downloads\WebfullSec`
 - Este workflow pode ser invocado com `/deploy`.
