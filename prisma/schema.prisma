@@ -1,7 +1,11 @@
 // ============================================
 // WebfullSec — Schema do Banco de Dados
 // Autoria: Webfull (https://webfull.com.br)
-// Versão: 2.0.0
+// Versão: 2.2.0
+// ============================================
+// Reestruturado com 5 tabelas aprimoradas:
+// Client, Project, Task, InboxItem, Memory
+// + tabelas auxiliares para IA, logs e monitoramento.
 // ============================================
 
 generator client {
@@ -36,68 +40,87 @@ model User {
 
 // ============================================
 // Modelo: Client (Clientes da agência)
+// Tabela 1 — Aprimorada com nível de importância
+// 1-5 e campos de contato expandidos.
 // ============================================
 model Client {
-  id           String   @id @default(cuid())
-  name         String
-  email        String?
-  phone        String?
-  company      String?
-  timezone     String   @default("America/Sao_Paulo")
-  urgencyLevel Int      @default(1) // 1=Baixa, 2=Média, 3=Alta, 4=Crítica
-  notes        String?
-  avatar       String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  company         String?
+  website         String?            // URL do site do cliente
+  cpfCnpj         String?            // CPF ou CNPJ do cliente
+  address         String?            // Endereço completo
+  timezone        String   @default("America/Sao_Paulo")
+  importanceLevel Int      @default(3) // 1=Muito Baixa, 2=Baixa, 3=Média, 4=Alta, 5=VIP
+  tags            String?            // JSON array de tags (ex: ["wordpress","mensal"])
+  notes           String?
+  avatar          String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relacionamentos
   projects Project[]
+
+  @@index([isActive])
+  @@index([importanceLevel])
 }
 
 // ============================================
 // Modelo: Project (Projetos vinculados a clientes)
+// Tabela 2 — Aprimorada com contexto geral (memória IA),
+// novos status (backlog, waiting_client) e data de início.
 // ============================================
 model Project {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  category    String   @default("site") // site, automation, beat
-  status      String   @default("planning") // planning, in_progress, review, completed, archived
-  priority    Int      @default(2) // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
-  wikiContent String?  // Conteúdo wiki/notas do projeto (Markdown)
-  clientId    String?
-  sopId       String?
-  startDate   DateTime?
-  dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String    @id @default(cuid())
+  title          String
+  description    String?
+  category       String    @default("site")           // site, automation, beat
+  status         String    @default("backlog")         // backlog, in_progress, waiting_client, completed, archived
+  priority       Int       @default(2)                 // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
+  generalContext String?                               // Escopo do projeto + memória da IA (onde parou, decisões, etc)
+  clientId       String?
+  startDate      DateTime?                             // Data planejada de início
+  startedAt      DateTime?                             // Data real que iniciou
+  dueDate        DateTime?                             // Prazo final de entrega
+  completedAt    DateTime?                             // Data que foi concluído
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relacionamentos
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  sop         SopTemplate? @relation(fields: [sopId], references: [id], onDelete: SetNull)
   tasks       Task[]
   memories    Memory[]
-  projectLink ProjectLink? // Vínculo com diretório local/VPS
+  projectLink ProjectLink?
+
+  @@index([status])
+  @@index([clientId])
+  @@index([category])
 }
 
 // ============================================
-// Modelo: Task (Tarefas com Do Date / Due Date)
+// Modelo: Task (Tarefas — coração do sistema)
+// Tabela 3 — Aprimorada com separação clara
+// entre doDate (quando executar) e dueDate (prazo).
 // ============================================
 model Task {
   id            String    @id @default(cuid())
   title         String
   description   String?
-  status        String    @default("todo") // todo, in_progress, done, cancelled
-  priority      Int       @default(2) // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
-  estimatedTime Int?      // Tempo estimado em minutos
-  actualTime    Int?      // Tempo real gasto em minutos
-  doDate        DateTime? // Data para executar a tarefa
-  dueDate       DateTime? // Prazo final com o cliente
-  completedAt   DateTime?
+  status        String    @default("inbox")   // inbox, todo, in_progress, done, cancelled
+  priority      Int       @default(2)          // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
+  estimatedTime Int?                           // Tempo estimado em minutos (essencial para IA calcular o dia)
+  actualTime    Int?                           // Tempo real gasto em minutos
+  doDate        DateTime?                      // Data/hora que a IA agendou para EXECUTAR a tarefa
+  dueDate       DateTime?                      // Data/hora LIMITE que o cliente precisa da entrega
+  completedAt   DateTime?                      // Quando foi concluída
+  tags          String?                        // JSON array de tags (ex: ["frontend","urgente"])
+  recurrence    String?                        // Recorrência: daily, weekly, monthly, null
   projectId     String?
-  parentId      String?   // Para subtarefas
-  position      Int       @default(0) // Ordem de exibição
+  parentId      String?                        // Para subtarefas
+  position      Int       @default(0)          // Ordem de exibição
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -107,6 +130,62 @@ model Task {
   subtasks         Task[]            @relation("SubTasks")
   timeBlocks       TimeBlock[]
   pomodoroSessions PomodoroSession[]
+  memories         Memory[]          // Logs de memória vinculados a esta tarefa
+
+  @@index([status])
+  @@index([doDate])
+  @@index([dueDate])
+  @@index([projectId])
+  @@index([priority])
+}
+
+// ============================================
+// Modelo: InboxItem (Caixa de entrada universal)
+// Tabela 4 — Funil de captura rápida aprimorado
+// com flag de processamento IA e conversão
+// automática para tarefa/projeto.
+// ============================================
+model InboxItem {
+  id                  String   @id @default(cuid())
+  title               String
+  content             String?                    // Conteúdo bruto da mensagem/ideia
+  source              String   @default("manual") // manual, email, whatsapp, telegram, webhook, thought, voice, ai
+  priority            Int      @default(2)
+  isRead              Boolean  @default(false)
+  isArchived          Boolean  @default(false)
+  processedByAi       Boolean  @default(false)    // Flag: IA já processou este item?
+  aiSummary           String?                     // Resumo gerado pela IA ao processar
+  convertedToTaskId   String?                     // ID da tarefa criada a partir deste item
+  convertedToProjectId String?                    // ID do projeto criado a partir deste item
+  metadata            String?                     // JSON com dados extras da fonte
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isRead, isArchived])
+  @@index([processedByAi])
+  @@index([source])
+}
+
+// ============================================
+// Modelo: Memory (Logs de memória / "Onde eu parei?")
+// Tabela 5 — Rastreador de contexto e progresso
+// vinculado a projetos e/ou tarefas.
+// ============================================
+model Memory {
+  id         String   @id @default(cuid())
+  content    String                          // Resumo da ação (ex: "Finalizou bateria, falta mixar baixo")
+  type       String   @default("progress")  // progress, decision, blocker, milestone, note, ai_summary
+  projectId  String
+  taskId     String?                         // Opcional: vincular a uma tarefa específica
+  createdAt  DateTime @default(now())
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([type])
 }
 
 // ============================================
@@ -125,53 +204,6 @@ model TimeBlock {
 
   // Relacionamentos
   task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-}
-
-// ============================================
-// Modelo: Memory (Trilha de migalhas / Contexto)
-// ============================================
-model Memory {
-  id        String   @id @default(cuid())
-  content   String   // Resumo gerado por IA ou anotação manual
-  type      String   @default("note") // note, ai_summary, milestone, decision
-  projectId String
-  createdAt DateTime @default(now())
-
-  // Relacionamentos
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-// ============================================
-// Modelo: InboxItem (Caixa de entrada universal)
-// ============================================
-model InboxItem {
-  id         String   @id @default(cuid())
-  title      String
-  content    String?
-  source     String   @default("manual") // manual, email, whatsapp, telegram, webhook
-  priority   Int      @default(2)
-  isRead     Boolean  @default(false)
-  isArchived Boolean  @default(false)
-  metadata   String?  // JSON com dados extras da fonte
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-// ============================================
-// Modelo: SopTemplate (Templates de Workflow/SOP)
-// ============================================
-model SopTemplate {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  category    String   @default("site") // site, automation, beat
-  steps       String   // JSON com array de passos [{title, estimatedTime, order}]
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relacionamentos
-  projects Project[]
 }
 
 // ============================================
@@ -318,4 +350,26 @@ model ServerMonitor {
   notes       String?   // Notas sobre o servidor
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// ============================================
+// Modelo: BurnoutLog (Guardião do Burnout)
+// Score diário de risco de burnout com
+// recomendações personalizadas da IA.
+// ============================================
+model BurnoutLog {
+  id               String   @id @default(cuid())
+  date             DateTime @unique          // Um registro por dia
+  score            Int                       // 0-100 (0=zen, 100=burnout)
+  level            String                    // low, moderate, high, critical
+  workMinutes      Int      @default(0)      // Total trabalhado no dia
+  tasksCompleted   Int      @default(0)
+  tasksOverdue     Int      @default(0)
+  breaksTaken      Int      @default(0)
+  factors          String?                   // JSON com detalhes dos fatores de risco
+  aiRecommendation String?                   // Recomendação gerada pela IA
+  createdAt        DateTime @default(now())
+
+  @@index([date])
+  @@index([score])
 }

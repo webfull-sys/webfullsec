@@ -5,6 +5,7 @@
  * PATCH  /api/tasks/[id] — Atualiza tarefa
  * DELETE /api/tasks/[id] — Remove tarefa
  * Autoria: Webfull (https://webfull.com.br)
+ * Versão: 2.2.0
  * ============================================
  */
 
@@ -17,8 +18,9 @@ export async function GET(request, { params }) {
     const task = await prisma.task.findUnique({
       where: { id },
       include: {
-        project: { select: { id: true, title: true, category: true } },
+        project: { select: { id: true, title: true, category: true, status: true } },
         subtasks: { orderBy: { position: 'asc' } },
+        memories: { orderBy: { createdAt: 'desc' }, take: 10 },
       },
     });
 
@@ -46,21 +48,29 @@ export async function PATCH(request, { params }) {
       'title', 'description', 'status', 'priority',
       'estimatedTime', 'actualTime', 'doDate', 'dueDate',
       'projectId', 'parentId', 'position', 'completedAt',
+      'tags', 'recurrence',
     ];
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         if (['doDate', 'dueDate', 'completedAt'].includes(field)) {
           data[field] = body[field] ? new Date(body[field]) : null;
+        } else if (field === 'tags') {
+          data[field] = typeof body[field] === 'string' ? body[field] : JSON.stringify(body[field]);
         } else {
           data[field] = body[field];
         }
       }
     }
 
-    // Se marcou como done, registrar completedAt
+    // Se marcou como done, registrar completedAt automaticamente
     if (body.status === 'done' && !body.completedAt) {
       data.completedAt = new Date();
+    }
+
+    // Se voltou de done para outro status, limpar completedAt
+    if (body.status && body.status !== 'done') {
+      data.completedAt = null;
     }
 
     const task = await prisma.task.update({

@@ -1,15 +1,20 @@
 /**
  * ============================================
  * WebfullSec — API: Projects (CRUD)
- * GET  /api/projects — Lista projetos
+ * GET  /api/projects — Lista projetos com filtros
  * POST /api/projects — Cria novo projeto
  * Autoria: Webfull (https://webfull.com.br)
+ * Versão: 2.2.0
  * ============================================
  */
 
 import prisma from '@/lib/prisma';
 import { apiResponse, apiError } from '@/lib/utils';
 
+/**
+ * GET /api/projects
+ * Query params: status, category, clientId, limit
+ */
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,6 +23,7 @@ export async function GET(request) {
     const clientId = searchParams.get('clientId');
     const limit = parseInt(searchParams.get('limit') || '50');
 
+    // Construir filtros
     const where = {};
     if (status) where.status = status;
     if (category) where.category = category;
@@ -26,22 +32,50 @@ export async function GET(request) {
     const projects = await prisma.project.findMany({
       where,
       include: {
-        client: { select: { id: true, name: true } },
-        _count: { select: { tasks: true } },
+        client: { select: { id: true, name: true, importanceLevel: true } },
+        _count: { select: { tasks: true, memories: true } },
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [
+        { priority: 'desc' },
+        { updatedAt: 'desc' },
+      ],
       take: limit,
     });
 
-    // Contar tarefas concluídas por projeto
+    // Contar tarefas concluídas e calcular progresso por projeto
     const projectsWithProgress = await Promise.all(
       projects.map(async (p) => {
-        const completedTasks = await prisma.task.count({
-          where: { projectId: p.id, status: 'done' },
-        });
+        const [completedTasks, totalEstimated, overdueCount] = await Promise.all([
+          // Tarefas concluídas
+          prisma.task.count({
+            where: { projectId: p.id, status: 'done' },
+          }),
+          // Total de tempo estimado (minutos)
+          prisma.task.aggregate({
+            where: { projectId: p.id, status: { not: 'cancelled' } },
+            _sum: { estimatedTime: true },
+          }),
+          // Tarefas atrasadas
+          prisma.task.count({
+            where: {
+              projectId: p.id,
+              dueDate: { lt: new Date() },
+              status: { notIn: ['done', 'cancelled'] },
+            },
+          }),
+        ]);
+
         return {
           ...p,
-          _count: { ...p._count, completedTasks },
+          _count: {
+            ...p._count,
+            completedTasks,
+            overdueTasks: overdueCount,
+          },
+          totalEstimatedMinutes: totalEstimated._sum.estimatedTime || 0,
+          progress: p._count.tasks > 0
+            ? Math.round((completedTasks / p._count.tasks) * 100)
+            : 0,
         };
       })
     );
@@ -53,10 +87,18 @@ export async function GET(request) {
   }
 }
 
+/**
+ * POST /api/projects
+ * Body: { title, description, category, priority, clientId,
+ *         generalContext, startDate, dueDate }
+ */
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, description, category, priority, clientId, sopId, startDate, dueDate } = body;
+    const {
+      title, description, category, priority,
+      clientId, generalContext, startDate, dueDate,
+    } = body;
 
     if (!title?.trim()) {
       return apiError('O título do projeto é obrigatório', 400);
@@ -67,9 +109,10 @@ export async function POST(request) {
         title: title.trim(),
         description: description?.trim() || null,
         category: category || 'site',
+        status: 'backlog', // Sempre inicia como backlog
         priority: priority || 2,
         clientId: clientId || null,
-        sopId: sopId || null,
+        generalContext: generalContext?.trim() || null,
         startDate: startDate ? new Date(startDate) : null,
         dueDate: dueDate ? new Date(dueDate) : null,
       },
@@ -78,26 +121,14 @@ export async function POST(request) {
       },
     });
 
-    // Se tiver SOP vinculado, criar tarefas automaticamente
-    if (sopId) {
-      try {
-        const sop = await prisma.sopTemplate.findUnique({ where: { id: sopId } });
-        if (sop?.steps) {
-          const steps = JSON.parse(sop.steps);
-          await prisma.task.createMany({
-            data: steps.map((step, index) => ({
-              title: step.title,
-              estimatedTime: step.estimatedTime || null,
-              position: index,
-              projectId: project.id,
-            })),
-          });
-        }
-      } catch {
-        // Se falhar ao criar tarefas do SOP, não impede a criação do projeto
-        console.warn('Falha ao aplicar SOP ao projeto');
-      }
-    }
+    // Criar log de memória automático
+    await prisma.memory.create({
+      data: {
+        content: `Projeto "${project.title}" criado na categoria ${category || 'site'}.`,
+        type: 'milestone',
+        projectId: project.id,
+      },
+    });
 
     return apiResponse(project, 201);
   } catch (error) {

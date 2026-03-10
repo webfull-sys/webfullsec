@@ -1,7 +1,7 @@
 # ============================================
 # WebfullSec — Docker Compose
 # Autoria: Webfull (https://webfull.com.br)
-# Versão: 2.1.0
+# Versão: 2.3.0
 # ============================================
 # Deploy: docker-compose up -d
 # Acesso: http://localhost:3000
@@ -53,7 +53,7 @@ services:
       TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-https://n8nwebfullsec.webfullvps.com.br/webhook}
       WEBHOOK_API_KEY: ${WEBHOOK_API_KEY:-sua-api-key-aqui}
-      APP_VERSION: "2.1.0"
+      APP_VERSION: "2.3.0"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gemini-2.0-flash}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

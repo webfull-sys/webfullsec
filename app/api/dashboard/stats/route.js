@@ -2,12 +2,16 @@
  * ============================================
  * WebfullSec — API: Dashboard Stats
  * GET /api/dashboard/stats
- * Retorna métricas do dashboard
+ * Retorna métricas completas do dashboard
  * Autoria: Webfull (https://webfull.com.br)
+ * Versão: 2.3.0
  * ============================================
+ * Métricas aprimoradas com burnout score,
+ * carga estimada do dia e analytics.
  */
 
 import prisma from '@/lib/prisma';
+import { calculateBurnoutScore } from '@/lib/burnout-guardian';
 import { apiResponse, apiError } from '@/lib/utils';
 
 export async function GET() {
@@ -19,13 +23,18 @@ export async function GET() {
 
     // Consultas em paralelo para performance
     const [
-      totalTasks,
+      todayTasks,
       completedToday,
-      inProgress,
-      overdue,
+      inProgressTasks,
+      overdueTasks,
+      inboxPending,
       totalProjects,
+      waitingClientProjects,
       activeClients,
       inboxUnread,
+      todayEstimated,
+      unprocessedInbox,
+      burnout,
     ] = await Promise.all([
       // Tarefas do dia (doDate = hoje)
       prisma.task.count({
@@ -41,7 +50,7 @@ export async function GET() {
           status: 'done',
         },
       }),
-      // Em progresso
+      // Em progresso (total)
       prisma.task.count({
         where: { status: 'in_progress' },
       }),
@@ -52,9 +61,17 @@ export async function GET() {
           status: { notIn: ['done', 'cancelled'] },
         },
       }),
-      // Projetos ativos
+      // Tarefas no inbox (não processadas)
+      prisma.task.count({
+        where: { status: 'inbox' },
+      }),
+      // Projetos em andamento
       prisma.project.count({
-        where: { status: { in: ['planning', 'in_progress', 'review'] } },
+        where: { status: { in: ['backlog', 'in_progress', 'waiting_client'] } },
+      }),
+      // Projetos aguardando cliente
+      prisma.project.count({
+        where: { status: 'waiting_client' },
       }),
       // Clientes ativos
       prisma.client.count({
@@ -64,17 +81,43 @@ export async function GET() {
       prisma.inboxItem.count({
         where: { isRead: false, isArchived: false },
       }),
+      // Carga estimada do dia em minutos
+      prisma.task.aggregate({
+        where: {
+          doDate: { gte: today, lt: tomorrow },
+          status: { notIn: ['done', 'cancelled'] },
+        },
+        _sum: { estimatedTime: true },
+      }),
+      // Itens da inbox universal não processados pela IA
+      prisma.inboxItem.count({
+        where: { processedByAi: false, isArchived: false },
+      }),
+      // Score de burnout
+      calculateBurnoutScore(),
     ]);
 
     return apiResponse({
-      totalTasks,
+      // Tarefas
+      todayTasks,
       completedToday,
-      inProgress,
-      overdue,
+      inProgressTasks,
+      overdueTasks,
+      inboxPending,
+      // Projetos
       totalProjects,
+      waitingClientProjects,
+      // Clientes
       activeClients,
+      // Inbox
       inboxUnread,
-      todayHours: 0, // Placeholder — calculado via PomodoroSessions
+      unprocessedInbox,
+      // Carga do dia
+      todayEstimatedMinutes: todayEstimated._sum.estimatedTime || 0,
+      // Guardião do Burnout
+      burnoutScore: burnout.score,
+      burnoutLevel: burnout.level,
+      burnoutRecommendation: burnout.recommendation,
     });
   } catch (error) {
     console.error('Erro ao buscar stats:', error);

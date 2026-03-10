@@ -1,8 +1,11 @@
 /**
  * ============================================
  * WebfullSec — API: Project Individual
- * GET/PATCH/DELETE /api/projects/[id]
+ * GET    /api/projects/[id] — Detalhe com memórias
+ * PATCH  /api/projects/[id] — Atualiza projeto
+ * DELETE /api/projects/[id] — Remove projeto
  * Autoria: Webfull (https://webfull.com.br)
+ * Versão: 2.2.0
  * ============================================
  */
 
@@ -15,15 +18,45 @@ export async function GET(request, { params }) {
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        client: true,
-        tasks: { orderBy: { position: 'asc' }, include: { subtasks: true } },
-        memories: { orderBy: { createdAt: 'desc' }, take: 20 },
-        sop: true,
+        client: { select: { id: true, name: true, importanceLevel: true, phone: true, email: true } },
+        tasks: {
+          orderBy: [{ priority: 'desc' }, { position: 'asc' }],
+          select: {
+            id: true, title: true, status: true, priority: true,
+            estimatedTime: true, doDate: true, dueDate: true, completedAt: true,
+          },
+        },
+        memories: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+        projectLink: true,
+        _count: { select: { tasks: true, memories: true } },
       },
     });
+
     if (!project) return apiError('Projeto não encontrado', 404);
-    return apiResponse(project);
+
+    // Calcular métricas do projeto
+    const completedTasks = project.tasks.filter(t => t.status === 'done').length;
+    const overdueTasks = project.tasks.filter(
+      t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done' && t.status !== 'cancelled'
+    ).length;
+    const totalEstimated = project.tasks.reduce((sum, t) => sum + (t.estimatedTime || 0), 0);
+
+    return apiResponse({
+      ...project,
+      metrics: {
+        completedTasks,
+        overdueTasks,
+        totalEstimatedMinutes: totalEstimated,
+        progress: project.tasks.length > 0
+          ? Math.round((completedTasks / project.tasks.length) * 100)
+          : 0,
+      },
+    });
   } catch (error) {
+    console.error('Erro ao buscar projeto:', error);
     return apiError('Erro interno', 500);
   }
 }
@@ -32,21 +65,70 @@ export async function PATCH(request, { params }) {
   try {
     const { id } = await params;
     const body = await request.json();
+
+    // Validação de título se fornecido
+    if (body.title !== undefined && !body.title?.trim()) {
+      return apiError('O título não pode ser vazio', 400);
+    }
+
+    // Campos permitidos para atualização
     const data = {};
-    const fields = ['title', 'description', 'category', 'status', 'priority', 'wikiContent', 'clientId', 'sopId', 'startDate', 'dueDate'];
-    for (const f of fields) {
-      if (body[f] !== undefined) {
-        if (['startDate', 'dueDate'].includes(f)) {
-          data[f] = body[f] ? new Date(body[f]) : null;
+    const allowedFields = [
+      'title', 'description', 'category', 'status', 'priority',
+      'generalContext', 'clientId', 'startDate', 'startedAt',
+      'dueDate', 'completedAt',
+    ];
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        if (['startDate', 'startedAt', 'dueDate', 'completedAt'].includes(field)) {
+          data[field] = body[field] ? new Date(body[field]) : null;
         } else {
-          data[f] = body[f];
+          data[field] = body[field];
         }
       }
     }
-    const project = await prisma.project.update({ where: { id }, data });
+
+    // Se mudou para in_progress e não tem startedAt, registrar
+    if (body.status === 'in_progress') {
+      const current = await prisma.project.findUnique({ where: { id }, select: { startedAt: true } });
+      if (current && !current.startedAt) {
+        data.startedAt = new Date();
+      }
+    }
+
+    // Se mudou para completed, registrar completedAt
+    if (body.status === 'completed' && !body.completedAt) {
+      data.completedAt = new Date();
+    }
+
+    const project = await prisma.project.update({
+      where: { id },
+      data,
+      include: {
+        client: { select: { id: true, name: true } },
+      },
+    });
+
+    // Criar log de memória para mudanças significativas
+    if (body.status || body.generalContext) {
+      await prisma.memory.create({
+        data: {
+          content: body.status
+            ? `Status alterado para "${body.status}".`
+            : 'Contexto geral atualizado.',
+          type: body.status ? 'milestone' : 'progress',
+          projectId: id,
+        },
+      });
+    }
+
     return apiResponse(project);
   } catch (error) {
-    if (error.code === 'P2025') return apiError('Projeto não encontrado', 404);
+    if (error.code === 'P2025') {
+      return apiError('Projeto não encontrado', 404);
+    }
+    console.error('Erro ao atualizar projeto:', error);
     return apiError('Erro ao atualizar projeto', 500);
   }
 }
@@ -55,9 +137,12 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
     await prisma.project.delete({ where: { id } });
-    return apiResponse({ message: 'Projeto removido' });
+    return apiResponse({ message: 'Projeto removido com sucesso' });
   } catch (error) {
-    if (error.code === 'P2025') return apiError('Projeto não encontrado', 404);
-    return apiError('Erro ao remover projeto', 500);
+    if (error.code === 'P2025') {
+      return apiError('Projeto não encontrado', 404);
+    }
+    console.error('Erro ao deletar projeto:', error);
+    return apiError('Erro ao deletar projeto', 500);
   }
 }

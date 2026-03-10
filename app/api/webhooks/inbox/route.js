@@ -4,6 +4,7 @@
  * POST /api/webhooks/inbox
  * Recebe itens de email, WhatsApp, Telegram
  * Autoria: Webfull (https://webfull.com.br)
+ * Versão: 2.2.0
  * ============================================
  */
 
@@ -30,14 +31,15 @@ export async function POST(request) {
       return apiError('O título é obrigatório', 400);
     }
 
-    // Criar item na inbox
+    // Criar item na inbox universal
     const item = await prisma.inboxItem.create({
       data: {
         title: title.trim(),
         content: content?.trim() || null,
         source: source || 'webhook',
         priority: priority || 2,
-        metadata: metadata ? JSON.stringify(metadata) : null,
+        processedByAi: false, // Pendente de processamento
+        metadata: metadata ? (typeof metadata === 'string' ? metadata : JSON.stringify(metadata)) : null,
       },
     });
 
