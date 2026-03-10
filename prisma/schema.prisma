@@ -1,0 +1,321 @@
+// ============================================
+// WebfullSec — Schema do Banco de Dados
+// Autoria: Webfull (https://webfull.com.br)
+// Versão: 2.0.0
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Modelo: User (Admin único do sistema)
+// ============================================
+model User {
+  id            String   @id @default(cuid())
+  name          String   @default("Admin")
+  email         String   @unique
+  password      String
+  timezone      String   @default("America/Sao_Paulo")
+  workStartHour Int      @default(9)
+  workEndHour   Int      @default(18)
+  pomodoroWork  Int      @default(25)  // minutos de trabalho
+  pomodoroBreak Int      @default(5)   // minutos de pausa
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relacionamentos
+  dailyLogs        DailyLog[]
+  pomodoroSessions PomodoroSession[]
+}
+
+// ============================================
+// Modelo: Client (Clientes da agência)
+// ============================================
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  company      String?
+  timezone     String   @default("America/Sao_Paulo")
+  urgencyLevel Int      @default(1) // 1=Baixa, 2=Média, 3=Alta, 4=Crítica
+  notes        String?
+  avatar       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  projects Project[]
+}
+
+// ============================================
+// Modelo: Project (Projetos vinculados a clientes)
+// ============================================
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String   @default("site") // site, automation, beat
+  status      String   @default("planning") // planning, in_progress, review, completed, archived
+  priority    Int      @default(2) // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
+  wikiContent String?  // Conteúdo wiki/notas do projeto (Markdown)
+  clientId    String?
+  sopId       String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  sop         SopTemplate? @relation(fields: [sopId], references: [id], onDelete: SetNull)
+  tasks       Task[]
+  memories    Memory[]
+  projectLink ProjectLink? // Vínculo com diretório local/VPS
+}
+
+// ============================================
+// Modelo: Task (Tarefas com Do Date / Due Date)
+// ============================================
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  status        String    @default("todo") // todo, in_progress, done, cancelled
+  priority      Int       @default(2) // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
+  estimatedTime Int?      // Tempo estimado em minutos
+  actualTime    Int?      // Tempo real gasto em minutos
+  doDate        DateTime? // Data para executar a tarefa
+  dueDate       DateTime? // Prazo final com o cliente
+  completedAt   DateTime?
+  projectId     String?
+  parentId      String?   // Para subtarefas
+  position      Int       @default(0) // Ordem de exibição
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacionamentos
+  project          Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  parent           Task?             @relation("SubTasks", fields: [parentId], references: [id], onDelete: SetNull)
+  subtasks         Task[]            @relation("SubTasks")
+  timeBlocks       TimeBlock[]
+  pomodoroSessions PomodoroSession[]
+}
+
+// ============================================
+// Modelo: TimeBlock (Slots de tempo no calendário)
+// ============================================
+model TimeBlock {
+  id        String   @id @default(cuid())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  color     String   @default("#00e5ff")
+  taskId    String?
+  isLocked  Boolean  @default(false) // Blocos fixos não podem ser reagendados
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+}
+
+// ============================================
+// Modelo: Memory (Trilha de migalhas / Contexto)
+// ============================================
+model Memory {
+  id        String   @id @default(cuid())
+  content   String   // Resumo gerado por IA ou anotação manual
+  type      String   @default("note") // note, ai_summary, milestone, decision
+  projectId String
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Modelo: InboxItem (Caixa de entrada universal)
+// ============================================
+model InboxItem {
+  id         String   @id @default(cuid())
+  title      String
+  content    String?
+  source     String   @default("manual") // manual, email, whatsapp, telegram, webhook
+  priority   Int      @default(2)
+  isRead     Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  metadata   String?  // JSON com dados extras da fonte
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ============================================
+// Modelo: SopTemplate (Templates de Workflow/SOP)
+// ============================================
+model SopTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String   @default("site") // site, automation, beat
+  steps       String   // JSON com array de passos [{title, estimatedTime, order}]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  projects Project[]
+}
+
+// ============================================
+// Modelo: PomodoroSession (Sessões do timer)
+// ============================================
+model PomodoroSession {
+  id          String   @id @default(cuid())
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int      // Duração em minutos
+  type        String   @default("work") // work, break
+  isCompleted Boolean  @default(false)
+  taskId      String?
+  userId      String
+  createdAt   DateTime @default(now())
+
+  // Relacionamentos
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Modelo: DailyLog (Rituais diários)
+// ============================================
+model DailyLog {
+  id             String   @id @default(cuid())
+  date           DateTime
+  type           String   // start, shutdown
+  plannedTasks   Int      @default(0)
+  completedTasks Int      @default(0)
+  totalHours     Float    @default(0)
+  wins           String?  // Vitórias do dia (texto)
+  notes          String?  // Notas adicionais
+  mood           Int?     // 1-5 escala de humor
+  userId         String
+  createdAt      DateTime @default(now())
+
+  // Relacionamentos
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Modelo: AiConversation (Histórico de conversas IA)
+// ============================================
+model AiConversation {
+  id        String   @id @default(cuid())
+  title     String   @default("Nova Conversa")
+  summary   String?  // Resumo gerado por IA da conversa
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  messages AiMessage[]
+}
+
+// ============================================
+// Modelo: AiMessage (Mensagens do chat com IA)
+// ============================================
+model AiMessage {
+  id             String   @id @default(cuid())
+  role           String   // "user", "assistant", "system"
+  content        String   // Conteúdo da mensagem
+  toolCalls      String?  // JSON com chamadas de ferramentas executadas
+  conversationId String
+  createdAt      DateTime @default(now())
+
+  // Relacionamentos
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Modelo: AiAction (Ações executadas pelo agente)
+// ============================================
+model AiAction {
+  id          String   @id @default(cuid())
+  type        String   // "create_task", "update_project", "send_notification", etc.
+  description String   // Descrição legível da ação
+  payload     String?  // JSON com parâmetros da ação
+  result      String?  // JSON com resultado da execução
+  status      String   @default("pending") // pending, success, failed
+  triggeredBy String   @default("ai") // ai, user, automation
+  createdAt   DateTime @default(now())
+}
+
+// ============================================
+// Modelo: Notification (Central de notificações)
+// ============================================
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String?
+  type      String   @default("info") // info, warning, success, error, reminder
+  isRead    Boolean  @default(false)
+  link      String?  // Link para a entidade relacionada
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// Modelo: Reminder (Lembretes inteligentes)
+// ============================================
+model Reminder {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  remindAt    DateTime  // Data/hora do lembrete
+  isCompleted Boolean   @default(false)
+  isSent      Boolean   @default(false)
+  recurrence  String?   // "daily", "weekly", "monthly", null
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ============================================
+// Modelo: ProjectLink (Vínculo com diretórios)
+// ============================================
+model ProjectLink {
+  id         String    @id @default(cuid())
+  projectId  String    @unique
+  localPath  String    // Caminho no desktop (ex: C:\Users\...\projeto)
+  vpsPath    String?   // Caminho no servidor VPS (ex: /var/www/projeto)
+  gitRepo    String?   // URL do repositório Git
+  techStack  String?   // JSON com tecnologias detectadas
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Modelo: ServerMonitor (Monitoramento VPS)
+// ============================================
+model ServerMonitor {
+  id          String    @id @default(cuid())
+  name        String    // Nome amigável do servidor
+  host        String    // IP ou domínio
+  type        String    @default("vps") // vps, shared, dedicated
+  sshPort     Int       @default(22)
+  status      String    @default("unknown") // online, offline, degraded, unknown
+  lastCheckAt DateTime?
+  services    String?   // JSON com serviços monitorados
+  notes       String?   // Notas sobre o servidor
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

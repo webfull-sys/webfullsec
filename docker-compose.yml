@@ -1,0 +1,71 @@
+# ============================================
+# WebfullSec — Docker Compose
+# Autoria: Webfull (https://webfull.com.br)
+# Versão: 2.0.0
+# ============================================
+# Deploy: docker-compose up -d
+# Acesso: http://localhost:3000
+
+services:
+  # ------------------------------------------
+  # Banco de Dados PostgreSQL
+  # ------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: webfullsec-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: webfullsec
+      POSTGRES_USER: webfullsec
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-SuaSenhaSegura123}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webfullsec"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webfullsec-net
+
+  # ------------------------------------------
+  # Aplicação WebfullSec (Next.js)
+  # ------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webfullsec-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://webfullsec:${DB_PASSWORD:-SuaSenhaSegura123}@db:5432/webfullsec?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-mude-esta-secret-em-producao}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@webfull.com.br}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      WORK_START_HOUR: ${WORK_START_HOUR:-9}
+      WORK_END_HOUR: ${WORK_END_HOUR:-18}
+      TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://n8n:5678/webhook}
+      WEBHOOK_API_KEY: ${WEBHOOK_API_KEY:-sua-api-key-aqui}
+      APP_VERSION: "2.0.0"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.0-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "3000:3000"
+    networks:
+      - webfullsec-net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  webfullsec-net:
+    driver: bridge
