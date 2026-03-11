@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Plus, X, Save, MessageSquare, Briefcase, Zap, Settings, ArrowLeft, Sparkles, Server } from 'lucide-react';
+import { Bot, Plus, X, Save, MessageSquare, Briefcase, Zap, Settings, Sparkles, Server } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import Link from 'next/link';
+import AppShell from '@/components/layout/AppShell';
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState([]);
@@ -32,28 +32,18 @@ export default function AgentsPage() {
       const res = await fetch('/api/agents');
       const data = await res.json();
       setAgents(data);
-    } catch (error) {
-      console.error('Erro ao buscar agentes:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error('Erro ao buscar agentes:', error); } 
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchAgents();
-  }, []);
+  useEffect(() => { fetchAgents(); }, []);
 
   const handleOpenModal = (agent = null) => {
     if (agent) {
       setFormData(agent);
     } else {
       setFormData({
-        name: '',
-        description: '',
-        systemPrompt: '',
-        llmModel: 'gemini-2.0-flash',
-        webhookUrl: '',
-        isActive: true
+        name: '', description: '', systemPrompt: '', llmModel: 'gemini-2.0-flash', webhookUrl: '', isActive: true
       });
     }
     setSelectedAgent(agent);
@@ -67,18 +57,14 @@ export default function AgentsPage() {
       const method = selectedAgent ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
       });
 
       if (res.ok) {
         setIsModalOpen(false);
         fetchAgents();
       }
-    } catch (error) {
-      console.error('Erro ao salvar agente:', error);
-    }
+    } catch (error) { console.error('Erro ao salvar agente:', error); }
   };
 
   const deleteAgent = async (id) => {
@@ -86,14 +72,12 @@ export default function AgentsPage() {
     try {
       const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' });
       if (res.ok) fetchAgents();
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-    }
+    } catch (error) { console.error('Erro ao excluir:', error); }
   };
 
   const openChat = (agent) => {
     setSelectedAgent(agent);
-    setChatHistory([]); // Limpa ou busca histórico futuro
+    setChatHistory([]);
     setIsChatOpen(true);
   };
 
@@ -117,396 +101,256 @@ export default function AgentsPage() {
       });
 
       const data = await res.json();
-      
       const botMsg = { 
         role: 'assistant', 
         content: data.reply || data.error || 'Operação recebida pelo cérebro N8N. Verifique o dashboard.' 
       };
-      
       setChatHistory(prev => [...prev, botMsg]);
     } catch (error) {
       setChatHistory(prev => [...prev, { role: 'assistant', content: 'Erro de comunicação neural. Verifique os nós do N8N.' }]);
-    } finally {
-      setIsSending(false);
-    }
+    } finally { setIsSending(false); }
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-8 animate-fade-in max-w-7xl mx-auto min-h-screen">
+    <AppShell pageTitle="Super Agentes">
       
-      {/* Botão Voltar */}
-      <Link href="/">
-        <button className="flex items-center gap-2 text-gray-400 hover:text-teal-400 transition-colors mb-4 group px-3 py-2 rounded-lg hover:bg-white/5">
-          <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-          <span className="font-medium">Voltar ao Dashboard</span>
-        </button>
-      </Link>
-
-      {/* Header Premium */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-r from-zinc-900/80 to-black/80 p-8 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-        {/* Glow Effects */}
-        <div className="absolute -top-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
-        
-        <div className="relative z-10 flex gap-5 items-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 border border-teal-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.2)]">
-            <Sparkles className="w-8 h-8 text-teal-400" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-teal-100 to-teal-400 tracking-tight">
-              Super Agentes
-            </h1>
-            <p className="text-gray-400 mt-1 font-medium text-sm md:text-base">
-              Orquestre sua equipe virtual conectada ao N8N e PostgreSQL (Pgvector).
-            </p>
-          </div>
+      {/* Header Padronizado */}
+      <div className="page-header">
+        <div>
+          <h2 className="page-title">🧠 Super Agentes</h2>
+          <p className="page-subtitle">Orquestre sua equipe virtual conectada ao N8N e PostgreSQL (Pgvector).</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="relative z-10 bg-teal-500 hover:bg-teal-400 text-black font-bold py-3 px-6 rounded-2xl flex items-center gap-2 transition-all shadow-[0_0_30px_rgba(20,184,166,0.3)] hover:shadow-[0_0_40px_rgba(20,184,166,0.5)] transform hover:-translate-y-0.5"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Especialista
-        </button>
+        <div className="page-actions">
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            + Novo Especialista
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-32">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin shadow-[0_0_15px_rgba(20,184,166,0.5)]" />
-            <span className="text-teal-500 font-medium tracking-widest text-sm uppercase">Carregando Redes Neurais</span>
-          </div>
-        </div>
+        <div className="empty-state"><div className="spinner" /></div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-md)' }}>
           {/* Card Add */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
+          <div
             onClick={() => handleOpenModal()}
-            className="border-2 border-dashed border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 hover:border-teal-500/60 rounded-3xl p-6 flex flex-col items-center justify-center text-center cursor-pointer min-h-[260px] transition-all group backdrop-blur-sm"
+            style={{
+              border: '2px dashed var(--border)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-xl)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', cursor: 'pointer', minHeight: '260px'
+            }}
+            className="hover-card"
           >
-            <div className="w-16 h-16 bg-teal-500/10 group-hover:bg-teal-500/20 rounded-full flex items-center justify-center mb-4 transition-colors">
-              <Plus className="w-8 h-8 text-teal-400" />
+            <div style={{ width: '60px', height: '60px', background: 'var(--background)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--space-md)', color: 'var(--text-secondary)' }}>
+              <Plus size={32} />
             </div>
-            <h3 className="font-bold tracking-wide text-gray-300 group-hover:text-teal-300">Injetar Novo Agente</h3>
-            <p className="text-xs text-gray-500 mt-2 font-mono">Conecte IA a workflows n8n</p>
-          </motion.div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Injetar Novo Agente</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 'var(--space-xs)' }}>Conecte IA a workflows n8n</p>
+          </div>
 
           {/* Cards Agents */}
           {agents.map((agent) => (
-            <motion.div
-              key={agent.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-zinc-900/60 backdrop-blur-lg border border-white/10 hover:border-teal-500/30 rounded-3xl p-6 relative group transition-all shadow-xl hover:shadow-[0_10px_40px_-10px_rgba(20,184,166,0.15)] flex flex-col"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                 <button onClick={() => openChat(agent)} className="p-2.5 bg-zinc-800 hover:bg-teal-500 text-teal-400 hover:text-black rounded-xl transition-colors shadow-lg">
-                  <MessageSquare className="w-4 h-4" />
+             <div 
+               key={agent.id}
+               style={{
+                 background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-md)', display: 'flex', flexDirection: 'column',
+                 position: 'relative'
+               }}
+             >
+              <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+                 <button className="btn btn-secondary" onClick={() => openChat(agent)} style={{ padding: '6px' }} title="Chat com Agente">
+                  <MessageSquare size={16} />
                 </button>
-                <button onClick={() => handleOpenModal(agent)} className="p-2.5 bg-zinc-800 hover:bg-zinc-700 text-gray-400 hover:text-white rounded-xl transition-colors shadow-lg">
-                  <Settings className="w-4 h-4" />
+                <button className="btn btn-secondary" onClick={() => handleOpenModal(agent)} style={{ padding: '6px' }} title="Configurações">
+                  <Settings size={16} />
                 </button>
               </div>
 
-              <div className="flex items-center gap-4 mb-5">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border ${
-                  agent.isActive ? 'bg-gradient-to-br from-teal-500/20 to-emerald-500/10 border-teal-500/30 text-teal-400' : 'bg-black/30 border-white/5 text-gray-600'
-                }`}>
-                  {agent.name.toLowerCase().includes('intake') ? <Briefcase className="w-7 h-7" /> : <Bot className="w-7 h-7" />}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                <div style={{
+                  width: '56px', height: '56px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)',
+                  background: agent.isActive ? 'var(--background)' : 'var(--border)', color: agent.isActive ? '#14b8a6' : 'var(--text-secondary)'
+                }}>
+                  {agent.name.toLowerCase().includes('intake') ? <Briefcase size={28} /> : <Bot size={28} />}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {agent.name}
-                    {!agent.isActive && <span className="text-[10px] bg-red-500/20 border border-red-500/30 text-red-400 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Off</span>}
+                    {!agent.isActive && <span style={{ fontSize: '10px', background: 'var(--danger)', color: '#fff', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>Off</span>}
                   </h3>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Server className="w-3 h-3 text-emerald-400" />
-                    <p className="text-xs text-emerald-400 font-mono tracking-tight">{agent.llmModel}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '0.85rem', color: 'var(--success)', fontFamily: 'monospace' }}>
+                    <Server size={12} /> {agent.llmModel}
                   </div>
                 </div>
               </div>
 
-              <div className="bg-black/40 border border-white/5 rounded-2xl p-4 mb-6 flex-1">
-                <p className="text-gray-400 text-sm line-clamp-3 leading-relaxed">
+              <div style={{ background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-sm)', marginBottom: 'var(--space-lg)', flex: 1 }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {agent.description || agent.systemPrompt.substring(0, 100) + '...'}
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-2 text-xs font-medium text-gray-500">
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  {agent._count?.interactions || 0} Ações Executadas
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--background)', padding: '4px 8px', borderRadius: '4px' }}>
+                  <Zap size={12} style={{ color: '#f59e0b' }} />
+                  {agent._count?.interactions || 0} Ações
                 </span>
-                <span className="opacity-70">{formatDistanceToNow(new Date(agent.createdAt), { locale: ptBR })}</span>
+                <span>{formatDistanceToNow(new Date(agent.createdAt), { locale: ptBR })}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       )}
 
-      {/* MODAL EDITOR Premium */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-              onClick={() => setIsModalOpen(false)}
-            />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl"
-            >
-              <div className="px-8 py-6 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-950/80 backdrop-blur-xl z-20">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20">
-                    <Bot className="w-6 h-6 text-teal-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 tracking-tight">
-                      {selectedAgent ? 'Configuração do Agente' : 'Programação Neural (Novo Agente)'}
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">Defina as diretrizes e a API do webhook alvo.</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSave} className="p-8 space-y-8">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2 md:col-span-1">
-                    <label className="block text-sm font-semibold text-gray-300 mb-3 ml-1 uppercase tracking-wider">Identidade</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
-                      placeholder="Ex: Intake Agent (Triagem)"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2 md:col-span-1">
-                    <label className="block text-sm font-semibold text-gray-300 mb-3 ml-1 uppercase tracking-wider">Plataforma LLM</label>
-                    <div className="relative">
-                      <select
-                        value={formData.llmModel}
-                        onChange={e => setFormData({...formData, llmModel: e.target.value})}
-                        className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all appearance-none shadow-inner"
-                      >
+      {/* Modal Editor Agente */}
+      {isModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px' }}>
+             <div className="modal-header">
+               <h3 className="modal-title">{selectedAgent ? 'Configuração do Agente' : 'Programação Neural (Novo Agente)'}</h3>
+               <button className="modal-close" onClick={() => setIsModalOpen(false)}>×</button>
+             </div>
+             <form onSubmit={handleSave}>
+               <div className="modal-body">
+                 <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Identidade *</label>
+                      <input required className="form-input" type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Ex: Intake Agent (Triagem)"/>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Plataforma LLM</label>
+                      <select className="form-select" value={formData.llmModel} onChange={e => setFormData({...formData, llmModel: e.target.value})}>
                         <option value="gemini-2.0-flash">Gemini 2.0 Flash (Padrão/N8N)</option>
                         <option value="gpt-4o">OpenAI GPT-4o (N8N Vision)</option>
                         <option value="claude-3-opus">Anthropic Claude 3.5 Sonnet</option>
                       </select>
-                      <div className="absolute inset-y-0 right-5 flex items-center pointer-events-none text-gray-500">
-                        ▼
-                      </div>
                     </div>
-                  </div>
-                </div>
+                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-3 ml-1 uppercase tracking-wider">Descrição das Habilidades</label>
-                  <input
-                    type="text"
-                    value={formData.description}
-                    onChange={e => setFormData({...formData, description: e.target.value})}
-                    className="w-full bg-black border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
-                    placeholder="Ex: Ouve audios via webhook e cria projetos na aba CRM"
-                  />
-                </div>
+                 <div className="form-group">
+                   <label className="form-label">Descrição das Habilidades</label>
+                   <input className="form-input" type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Ex: Ouve audios via webhook e cria projetos na aba CRM" />
+                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-3 ml-1">
-                    <label className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
-                      Regras e Treinamento (System Prompt)
+                 <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      Regras e Treinamento (System Prompt) *
+                      <span style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>system.role</span>
                     </label>
-                    <span className="text-xs text-teal-400 bg-teal-500/10 px-2 py-1 rounded-md font-mono">system.role</span>
-                  </div>
-                  <textarea
-                    value={formData.systemPrompt}
-                    onChange={e => setFormData({...formData, systemPrompt: e.target.value})}
-                    className="w-full bg-[#0a0a0a] border border-white/10 hover:border-white/20 rounded-2xl px-5 py-5 text-teal-50 font-mono text-sm leading-relaxed focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all min-h-[200px] shadow-inner resize-y"
-                    placeholder="Instrua o modelo de IA sobre as tabelas e comportamentos esperados..."
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-3 ml-1 uppercase tracking-wider">N8N Webhook URL de Escuta</label>
-                  <div className="relative">
-                    <Server className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input
-                      type="url"
-                      value={formData.webhookUrl}
-                      onChange={e => setFormData({...formData, webhookUrl: e.target.value})}
-                      className="w-full bg-black border border-white/10 rounded-2xl pl-12 pr-5 py-4 text-white font-mono text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
-                      placeholder="https://n8n.../webhook/xxxx"
+                    <textarea 
+                      required className="form-input" 
+                      style={{ minHeight: '180px', fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: '1.6' }} 
+                      value={formData.systemPrompt} onChange={e => setFormData({...formData, systemPrompt: e.target.value})} 
+                      placeholder="Instrua o modelo de IA sobre as tabelas e comportamentos esperados..." 
                     />
-                  </div>
-                  <p className="text-xs text-gray-500 font-medium ml-1 mt-2">
-                    Deixe em branco para forçar o uso universal do .env (Recomendado)
-                  </p>
-                </div>
+                 </div>
 
-                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <div 
-                    className={`w-14 h-7 rounded-full cursor-pointer transition-colors relative flex-shrink-0 ${formData.isActive ? 'bg-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.4)]' : 'bg-gray-800'}`}
-                    onClick={() => setFormData({...formData, isActive: !formData.isActive})}
-                  >
-                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-md ${formData.isActive ? 'left-8' : 'left-1'}`} />
-                  </div>
-                  <div>
-                    <span className="text-base font-bold text-white block">Status Operacional</span>
-                    <span className="text-xs text-gray-400">Desative para pausar chamadas a este agente via UI</span>
-                  </div>
-                </div>
+                 <div className="form-group">
+                    <label className="form-label">N8N Webhook URL de Escuta</label>
+                    <input type="url" className="form-input" value={formData.webhookUrl} onChange={e => setFormData({...formData, webhookUrl: e.target.value})} placeholder="https://n8n.../webhook/xxxx" />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Deixe em branco para forçar o uso universal do .env (Recomendado)</p>
+                 </div>
 
-                <div className="flex justify-between pt-8 border-t border-white/10">
-                  {selectedAgent ? (
-                    <button
-                      type="button"
-                      onClick={() => deleteAgent(selectedAgent.id)}
-                      className="text-red-500 hover:text-red-400 hover:bg-red-500/10 px-5 py-3 rounded-xl font-bold transition-colors"
+                 <div style={{ background: 'var(--background)', padding: 'var(--space-md)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+                    <div 
+                      onClick={() => setFormData({...formData, isActive: !formData.isActive})}
+                      style={{
+                        width: '44px', height: '24px', borderRadius: '12px', background: formData.isActive ? 'var(--primary)' : 'var(--border)',
+                        position: 'relative', cursor: 'pointer', transition: 'background 0.3s'
+                      }}
                     >
+                      <div style={{
+                        width: '18px', height: '18px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '3px',
+                        left: formData.isActive ? '23px' : '3px', transition: 'left 0.3s'
+                      }}/>
+                    </div>
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Status Operacional</strong>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Desative para pausar chamadas a este agente via UI</span>
+                    </div>
+                 </div>
+               </div>
+               <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 {selectedAgent ? (
+                    <button type="button" onClick={() => deleteAgent(selectedAgent.id)} style={{ color: 'var(--danger)', background: 'transparent', border: 'none', fontWeight: 600, cursor: 'pointer', padding: '8px' }}>
                       Desativar Permanente (Excluir)
                     </button>
                   ) : <div />}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      className="px-6 py-3 rounded-xl font-bold bg-white/5 hover:bg-white/10 transition-colors text-white"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-8 py-3 rounded-xl font-bold bg-gradient-to-r from-teal-500 to-emerald-400 text-black hover:from-teal-400 hover:to-emerald-300 transition-colors flex items-center gap-2 shadow-[0_0_20px_rgba(20,184,166,0.2)] transform hover:-translate-y-0.5"
-                    >
-                      <Save className="w-5 h-5" />
-                      Guardar Protocolo
-                    </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
+                    <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={16}/> Guardar Protocolo</button>
                   </div>
-                </div>
-              </form>
-            </motion.div>
+               </div>
+             </form>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
-      {/* CHAT INTERATIVO N8N */}
-      <AnimatePresence>
-        {isChatOpen && selectedAgent && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-             <motion.div
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               className="absolute inset-0 bg-black/80 backdrop-blur-xl"
-               onClick={() => setIsChatOpen(false)}
-             />
-             <motion.div
-               initial={{ scale: 0.95, opacity: 0, y: 50 }}
-               animate={{ scale: 1, opacity: 1, y: 0 }}
-               exit={{ scale: 0.95, opacity: 0, y: 50 }}
-               className="relative bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col h-[85vh] lg:h-[75vh]"
-             >
-               {/* Header Chat */}
-               <div className="p-5 border-b border-white/10 bg-zinc-900/80 backdrop-blur-xl flex items-center justify-between z-10">
-                 <div className="flex items-center gap-4">
-                   <div className="relative">
-                     <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 flex items-center justify-center">
-                       <Bot className="w-6 h-6" />
-                     </div>
-                     <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-zinc-950 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
-                   </div>
-                   <div>
-                     <h3 className="font-black text-xl text-white tracking-tight">{selectedAgent.name}</h3>
-                     <p className="text-xs font-mono text-teal-400 flex items-center gap-1.5 mt-0.5">
-                       <Zap className="w-3 h-3" /> Comunicação Segura via N8N
-                     </p>
-                   </div>
+      {/* Chat Interativo Modal */}
+      {isChatOpen && selectedAgent && (
+        <div className="modal-backdrop" onClick={() => setIsChatOpen(false)}>
+           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', height: '80vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
+             <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', padding: 'var(--space-md)' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                 <div style={{ width: '40px', height: '40px', background: 'var(--background)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+                    <Bot size={20} style={{ color: '#14b8a6' }} />
                  </div>
-                 <button onClick={() => setIsChatOpen(false)} className="p-3 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
-                   <X className="w-5 h-5" />
-                 </button>
+                 <div>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>{selectedAgent.name}</h3>
+                   <span style={{ fontSize: '0.75rem', color: '#14b8a6', fontFamily: 'monospace' }}>Comunicação Segura via N8N</span>
+                 </div>
                </div>
+               <button className="modal-close" onClick={() => setIsChatOpen(false)}>×</button>
+             </div>
 
-               {/* Messages Window */}
-               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-black relative">
-                  {chatHistory.length === 0 && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-10">
-                      <div className="w-24 h-24 mb-6 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center">
-                        <MessageSquare className="w-10 h-10 text-gray-500" />
-                      </div>
-                      <h4 className="text-xl font-bold text-gray-300 mb-2">Inicie a transmissão para {selectedAgent.name}</h4>
-                      <p className="text-gray-500 text-sm max-w-sm">
-                        Envie uma instrução textual, JSON bruto ou descrição de cenário. O n8n processará estes dados conforme a sua programação.
-                      </p>
+             <div style={{ flex: 1, padding: 'var(--space-md)', overflowY: 'auto', background: '#09090b', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+               {chatHistory.length === 0 ? (
+                 <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-secondary)' }}>
+                   <MessageSquare size={48} style={{ opacity: 0.2, marginBottom: 'var(--space-sm)' }} />
+                   <h4 style={{ color: 'var(--text-primary)', marginBottom: '4px' }}>Inicie a transmissão</h4>
+                   <p style={{ fontSize: '0.85rem' }}>Envie uma instrução textual. O n8n processará conforme a programação.</p>
+                 </div>
+               ) : (
+                 chatHistory.map((msg, i) => (
+                   <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                     <div style={{ 
+                       maxWidth: '85%', padding: '12px 16px', borderRadius: '16px', fontSize: '0.9rem', lineHeight: '1.5',
+                       background: msg.role === 'user' ? '#14b8a6' : '#18181b', color: msg.role === 'user' ? '#000' : '#e4e4e7',
+                       borderBottomRightRadius: msg.role === 'user' ? '4px' : '16px', borderTopLeftRadius: msg.role === 'user' ? '16px' : '4px'
+                     }}>
+                       {typeof msg.content === 'object' ? <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.8rem' }}>{JSON.stringify(msg.content, null, 2)}</pre> : <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>}
+                     </div>
+                   </div>
+                 ))
+               )}
+               {isSending && (
+                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                    <div style={{ background: '#18181b', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: '4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                       <div style={{ width: '8px', height: '8px', background: '#14b8a6', borderRadius: '50%', animation: 'pulse 1.5s infinite' }} />
+                       <div style={{ width: '8px', height: '8px', background: '#14b8a6', borderRadius: '50%', animation: 'pulse 1.5s infinite 0.2s' }} />
+                       <div style={{ width: '8px', height: '8px', background: '#14b8a6', borderRadius: '50%', animation: 'pulse 1.5s infinite 0.4s' }} />
                     </div>
-                  )}
+                 </div>
+               )}
+             </div>
 
-                  {chatHistory.map((msg, i) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-[85%] rounded-[24px] px-6 py-4 shadow-xl ${
-                        msg.role === 'user' 
-                          ? 'bg-gradient-to-br from-teal-500 to-emerald-400 text-black rounded-tr-sm' 
-                          : 'bg-[#111] border border-white/5 text-gray-200 rounded-tl-sm font-mono text-sm leading-relaxed'
-                      }`}>
-                        {typeof msg.content === 'object' ? <pre className="whitespace-pre-wrap">{JSON.stringify(msg.content, null, 2)}</pre> : <p className="whitespace-pre-wrap">{msg.content}</p>}
-                      </div>
-                    </motion.div>
-                  ))}
-                  
-                  {isSending && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                       <div className="bg-[#111] border border-white/5 rounded-[24px] rounded-tl-sm px-5 py-4 flex gap-2 items-center">
-                         <div className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
-                         <div className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse delay-150 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
-                         <div className="w-2.5 h-2.5 bg-teal-500 rounded-full animate-pulse delay-300 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
-                       </div>
-                    </motion.div>
-                  )}
-               </div>
-
-               {/* Input Terminal */}
-               <div className="p-5 border-t border-white/10 bg-zinc-950">
-                 <form 
-                  onSubmit={e => { e.preventDefault(); sendChatMessage(); }}
-                  className="relative flex items-center"
-                 >
-                   <input
-                     type="text"
-                     value={chatMessage}
-                     onChange={e => setChatMessage(e.target.value)}
-                     placeholder="Dispare um evento neural..."
-                     className="w-full bg-[#111] border border-white/10 focus:border-teal-500/50 rounded-2xl pl-6 pr-16 py-5 text-white placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-teal-500/50 transition-all font-medium"
-                   />
-                   <button 
-                    disabled={!chatMessage.trim() || isSending}
-                    className="absolute right-3 p-3 bg-teal-500 text-black rounded-xl disabled:opacity-30 disabled:bg-gray-600 hover:bg-teal-400 hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(20,184,166,0.3)]"
-                   >
-                     <Zap className="w-5 h-5 fill-black" />
-                   </button>
-                 </form>
-               </div>
-             </motion.div>
+             <div style={{ padding: 'var(--space-md)', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
+               <form onSubmit={e => { e.preventDefault(); sendChatMessage(); }} style={{ display: 'flex', gap: '8px' }}>
+                 <input 
+                   type="text" 
+                   value={chatMessage} onChange={e => setChatMessage(e.target.value)} 
+                   placeholder="Dispare um evento neural..." 
+                   className="form-input" 
+                   style={{ flex: 1, paddingRight: '12px' }}
+                 />
+                 <button type="submit" className="btn btn-primary" disabled={!chatMessage.trim() || isSending} style={{ padding: '10px', background: '#14b8a6', color: '#000' }}>
+                   <Zap size={20} />
+                 </button>
+               </form>
+             </div>
            </div>
-        )}
-      </AnimatePresence>
-    </div>
+        </div>
+      )}
+
+    </AppShell>
   );
 }
