@@ -1,138 +1,46 @@
-/**
- * ============================================
- * WebfullSec — API: Projects (CRUD)
- * GET  /api/projects — Lista projetos com filtros
- * POST /api/projects — Cria novo projeto
- * Autoria: Webfull (https://webfull.com.br)
- * Versão: 2.2.0
- * ============================================
- */
-
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { apiResponse, apiError } from '@/lib/utils';
 
-/**
- * GET /api/projects
- * Query params: status, category, clientId, limit
- */
-export async function GET(request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const category = searchParams.get('category');
-    const clientId = searchParams.get('clientId');
-    const limit = parseInt(searchParams.get('limit') || '50');
-
-    // Construir filtros
-    const where = {};
-    if (status) where.status = status;
-    if (category) where.category = category;
-    if (clientId) where.clientId = clientId;
-
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        client: { select: { id: true, name: true, importanceLevel: true } },
-        _count: { select: { tasks: true, memories: true } },
-      },
-      orderBy: [
-        { priority: 'desc' },
-        { updatedAt: 'desc' },
-      ],
-      take: limit,
+    const projects = await prisma.aiProjeto.findMany({
+      include: { cliente: true },
+      orderBy: { criado_em: 'desc' }
     });
-
-    // Contar tarefas concluídas e calcular progresso por projeto
-    const projectsWithProgress = await Promise.all(
-      projects.map(async (p) => {
-        const [completedTasks, totalEstimated, overdueCount] = await Promise.all([
-          // Tarefas concluídas
-          prisma.task.count({
-            where: { projectId: p.id, status: 'done' },
-          }),
-          // Total de tempo estimado (minutos)
-          prisma.task.aggregate({
-            where: { projectId: p.id, status: { not: 'cancelled' } },
-            _sum: { estimatedTime: true },
-          }),
-          // Tarefas atrasadas
-          prisma.task.count({
-            where: {
-              projectId: p.id,
-              dueDate: { lt: new Date() },
-              status: { notIn: ['done', 'cancelled'] },
-            },
-          }),
-        ]);
-
-        return {
-          ...p,
-          _count: {
-            ...p._count,
-            completedTasks,
-            overdueTasks: overdueCount,
-          },
-          totalEstimatedMinutes: totalEstimated._sum.estimatedTime || 0,
-          progress: p._count.tasks > 0
-            ? Math.round((completedTasks / p._count.tasks) * 100)
-            : 0,
-        };
-      })
-    );
-
-    return apiResponse({ projects: projectsWithProgress });
+    return NextResponse.json(projects);
   } catch (error) {
-    console.error('Erro ao listar projetos:', error);
-    return apiError('Erro ao listar projetos', 500);
+    console.error('Erro GET projects:', error);
+    return NextResponse.json({ error: 'Erro ao buscar projetos' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/projects
- * Body: { title, description, category, priority, clientId,
- *         generalContext, startDate, dueDate }
- */
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const body = await request.json();
-    const {
-      title, description, category, priority,
-      clientId, generalContext, startDate, dueDate,
-    } = body;
+    const body = await req.json();
+    const project = await prisma.aiProjeto.create({
+      data: {
+        titulo_projeto: body.titulo_projeto,
+        cliente_id: body.cliente_id || null,
+        categoria: body.categoria || 'Site',
+        status_projeto: body.status_projeto || 'Briefing',
+        prioridade: body.prioridade || 'Normal',
+        due_date_cliente: body.due_date_cliente ? new Date(body.due_date_cliente) : null
+      }
+    });
 
-    if (!title?.trim()) {
-      return apiError('O título do projeto é obrigatório', 400);
+    // Se a categoria for Beat, cria um BeatProducao atrelado
+    if (body.categoria === 'Beat') {
+      await prisma.beatProducao.create({
+        data: {
+          projeto_id: project.id,
+          titulo_faixa: body.titulo_projeto
+        }
+      });
     }
 
-    const project = await prisma.project.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        category: category || 'site',
-        status: 'backlog', // Sempre inicia como backlog
-        priority: priority || 2,
-        clientId: clientId || null,
-        generalContext: generalContext?.trim() || null,
-        startDate: startDate ? new Date(startDate) : null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
-      include: {
-        client: { select: { id: true, name: true } },
-      },
-    });
-
-    // Criar log de memória automático
-    await prisma.memory.create({
-      data: {
-        content: `Projeto "${project.title}" criado na categoria ${category || 'site'}.`,
-        type: 'milestone',
-        projectId: project.id,
-      },
-    });
-
-    return apiResponse(project, 201);
+    return NextResponse.json(project);
   } catch (error) {
-    console.error('Erro ao criar projeto:', error);
-    return apiError('Erro ao criar projeto', 500);
+    console.error('Erro POST project:', error);
+    return NextResponse.json({ error: 'Erro ao criar projeto' }, { status: 500 });
   }
 }

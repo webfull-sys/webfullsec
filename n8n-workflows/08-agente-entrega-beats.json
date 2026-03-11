@@ -1,0 +1,184 @@
+{
+  "name": "Agente de Entrega de Beats (Evolution API & Gmail)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "entrega-beats",
+        "options": {}
+      },
+      "name": "Webhook (Finalizado)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "agente-entrega-beats-wbs"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT bp.titulo_faixa, bp.link_stems_wav, bp.tipo_licenca, c.nome_cliente, c.email, c.telefone FROM beats_producoes bp JOIN projetos p ON bp.projeto_id = p.id JOIN clientes c ON p.cliente_id = c.id WHERE bp.id = $1;",
+        "options": {
+          "queryParameters": "={{ $json.body.beatId }}"
+        }
+      },
+      "name": "PostgreSQL (Busca Dados)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Webhook (Finalizado)\"].json[\"body\"][\"status\"] }}",
+              "value2": "Finalizado"
+            }
+          ]
+        }
+      },
+      "name": "IF (Aprovado e Finalizado)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "search",
+        "query": "name contains '{{ $node[\"PostgreSQL (Busca Dados)\"].json[\"titulo_faixa\"] }}'"
+      },
+      "name": "Google Drive (Link Stems)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 2,
+      "position": [
+        800,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node[\"PostgreSQL (Busca Dados)\"].json[\"email\"] }}",
+        "subject": "={{ $node[\"PostgreSQL (Busca Dados)\"].json[\"titulo_faixa\"] }} - Arquivos Finais e Licença",
+        "message": "=Fala {{ $node[\"PostgreSQL (Busca Dados)\"].json[\"nome_cliente\"] }},<br><br>Seu beat '<b>{{ $node[\"PostgreSQL (Busca Dados)\"].json[\"titulo_faixa\"] }}</b>' está masterizado e pronto!<br><br>Licença Adquirida: <b>{{ $node[\"PostgreSQL (Busca Dados)\"].json[\"tipo_licenca\"] }}</b><br><br>Baixe seus arquivos WAV de alta qualidade (Trackouts) e o contrato de licença através deste link seguro:<br><a href=\"{{ $node[\"PostgreSQL (Busca Dados)\"].json[\"link_stems_wav\"] }}\">Baixar Stems & Contrato</a><br><br>Tamo junto!<br>WebfullSec Studio",
+        "options": {}
+      },
+      "name": "Gmail (Envio Oficial)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://[SEU_IP_EVOLUTION]:8080/message/sendText/[SUA_INSTANCIA]",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "evolutionApiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUA_API_KEY_AQUI"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $node[\"PostgreSQL (Busca Dados)\"].json[\"telefone\"].replace(/\\D/g, '') }}"
+            },
+            {
+              "name": "text",
+              "value": "=Irmão, acabei de enviar os arquivos finais e o contrato do seu beat '{{ $node[\"PostgreSQL (Busca Dados)\"].json[\"titulo_faixa\"] }}' no seu e-mail ({{ $node[\"PostgreSQL (Busca Dados)\"].json[\"email\"] }}). Confere lá no Google Drive e me diz o que achou!"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Evolution API (WhatsApp SMS)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1200,
+        280
+      ],
+      "notes": "Atenção: Substituir o IP, a Instância e a Apikey."
+    }
+  ],
+  "connections": {
+    "Webhook (Finalizado)": {
+      "main": [
+        [
+          {
+            "node": "PostgreSQL (Busca Dados)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostgreSQL (Busca Dados)": {
+      "main": [
+        [
+          {
+            "node": "IF (Aprovado e Finalizado)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Aprovado e Finalizado)": {
+      "main": [
+        [
+          {
+            "node": "Google Drive (Link Stems)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Google Drive (Link Stems)": {
+      "main": [
+        [
+          {
+            "node": "Gmail (Envio Oficial)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail (Envio Oficial)": {
+      "main": [
+        [
+          {
+            "node": "Evolution API (WhatsApp SMS)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

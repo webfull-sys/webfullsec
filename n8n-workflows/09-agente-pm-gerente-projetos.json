@@ -1,0 +1,211 @@
+{
+  "name": "PM Agent (Gerente de Projetos e Prazos)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger (Diário 08:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        300
+      ],
+      "notes": "Roda todo dia da semana as 8am"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.titulo_projeto, p.status_projeto, p.due_date_cliente, p.eta_previsao_ia, c.nome_cliente FROM projetos p JOIN clientes c ON p.cliente_id = c.id WHERE p.status_projeto NOT IN ('Concluído', 'Arquivado') AND p.due_date_cliente IS NOT NULL;"
+      },
+      "name": "Postgres (Buscar Projetos Ativos)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o",
+        "messages": {
+          "messageValues": [
+            {
+              "role": "system",
+              "content": "Você é o Project Manager Agent (Gestor de Esteira). Avalie a lista de projetos, cruzando o 'due_date_cliente' com o 'eta_previsao_ia' e a data de hoje. Retorne APENAS um JSON válido estruturado onde a chave raiz seja 'atualizacoes' contendo um array de objetos com 'id_projeto', 'novo_eta_recomendado' (no formato YYYY-MM-DD), 'prioridade_sugerida' e 'mensagem_alerta' para o dono da agência."
+            },
+            {
+              "role": "user",
+              "content": "Data Hoje: {{$now}}\n\nProjetos:\n{{ $json }}"
+            }
+          ]
+        }
+      },
+      "name": "AI Agent (Análise Crítica Prazos)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "message.content.atualizacoes",
+        "options": {}
+      },
+      "name": "Item Lists (Dividir Projetos)",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE projetos SET eta_previsao_ia = $1, prioridade = $2 WHERE id = $3;",
+        "options": {
+          "queryParameters": "={{ $json.novo_eta_recomendado }}, {{ $json.prioridade_sugerida }}, {{ $json.id_projeto }}"
+        }
+      },
+      "name": "Postgres (Atualiza ETA/Prioridade)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.prioridade_sugerida }}",
+              "value2": "Urgente"
+            }
+          ]
+        }
+      },
+      "name": "Filter (Apenas Urgentes)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://[SEU_IP_EVOLUTION]:8080/message/sendText/[SUA_INSTANCIA]",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "SUA_API_KEY_AQUI"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "SEU_NUMERO_WHATSAPP_AQUI"
+            },
+            {
+              "name": "text",
+              "value": "=🚨 *Alerta do PM Agent* 🚨\n\nIdentifiquei Risco no Projeto ID {{ $json.id_projeto }}.\n\nRecomendação/Alerta:\n{{ $json.mensagem_alerta }}\n\nPrioridade alterada automaticamente para: URGENTE."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Evolution API (Alerta Pessoal)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1200,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Diário 08:00)": {
+      "main": [
+        [
+          {
+            "node": "Postgres (Buscar Projetos Ativos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres (Buscar Projetos Ativos)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (Análise Crítica Prazos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (Análise Crítica Prazos)": {
+      "main": [
+        [
+          {
+            "node": "Item Lists (Dividir Projetos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Item Lists (Dividir Projetos)": {
+      "main": [
+        [
+          {
+            "node": "Postgres (Atualiza ETA/Prioridade)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter (Apenas Urgentes)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter (Apenas Urgentes)": {
+      "main": [
+        [
+          {
+            "node": "Evolution API (Alerta Pessoal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

@@ -423,3 +423,74 @@ model KnowledgeBase {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// ============================================
+// NOVOS MODELOS V2.5.0 (CRM, IA & Beats)
+// Mapeados exatamente para o N8N executar Queries SQL
+// ============================================
+
+model CrmCliente {
+  id              String   @id @default(cuid())
+  nome_cliente    String
+  email           String?
+  telefone        String?
+  status_cliente  String   @default("Lead")
+  nivel_prioridade Int     @default(3)
+  notas_contexto  String?
+  criado_em       DateTime @default(now())
+
+  projetos        AiProjeto[]
+
+  @@map("clientes")
+}
+
+model AiProjeto {
+  id                 String    @id @default(cuid())
+  cliente_id         String?
+  titulo_projeto     String
+  categoria          String    @default("Site") // Site, Automacao, Beat
+  status_projeto     String    @default("Briefing") // Briefing, Em Execução, Aguardando Aprovação, Finalizado
+  prioridade         String    @default("Normal") // Baixa, Normal, Alta, Urgente
+  due_date_cliente   DateTime?
+  eta_previsao_ia    DateTime?
+  resumo_ia_contexto String?
+  criado_em          DateTime  @default(now())
+  atualizado_em      DateTime  @updatedAt
+
+  cliente            CrmCliente? @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
+  beats_producoes    BeatProducao[]
+
+  @@map("projetos")
+}
+
+model BeatProducao {
+  id                     String    @id @default(cuid())
+  projeto_id             String?
+  titulo_faixa           String
+  genero                 String?
+  bpm                    Int?
+  tom_escala             String?
+  tipo_licenca           String?   // Lease Standard, Lease Premium, Exclusiva, Ghost Production
+  status_producao        String    @default("Ideia/Rascunho") // Ideia/Rascunho, Arranjo, Mixagem, Masterização, Aguardando Aprovação, Finalizado
+  link_preview_mp3       String?
+  link_stems_wav         String?
+  referencias_cliente    String?
+  data_lancamento_sugerida DateTime?
+
+  projeto                AiProjeto? @relation(fields: [projeto_id], references: [id], onDelete: SetNull)
+
+  @@map("beats_producoes")
+}
+
+model BaseConhecimentoVetorial {
+  id               String   @id @default(cuid())
+  titulo_documento String
+  conteudo_texto   String
+  tipo_documento   String   @default("SOP") // SOP, Briefing_Cliente, Nota_Reuniao, Ideia_Beat
+  projeto_id       String?
+  embedding        String?  // Simulação local de VECTOR até ir para Produção com pgvector real
+  criado_em        DateTime @default(now())
+  atualizado_em    DateTime @updatedAt
+
+  @@map("base_conhecimento_vetorial")
+}

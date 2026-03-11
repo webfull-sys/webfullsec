@@ -1,0 +1,176 @@
+{
+  "name": "Intake Agent (Gatilho de Áudio via Evolution API)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-audio-intake",
+        "options": {}
+      },
+      "name": "Evolution API Webhook (Recebe Mensagem)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.message.type }}",
+              "value2": "audio"
+            }
+          ]
+        }
+      },
+      "name": "Check se é Áudio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.body.message.audioUrl }}",
+        "responseFormat": "file",
+        "options": {}
+      },
+      "name": "Baixar Áudio OGG/MP3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "model": "whisper-1",
+        "language": "pt",
+        "binaryPropertyName": "data"
+      },
+      "name": "OpenAI (Whisper Transcrição)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        800,
+        280
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAi API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o",
+        "messages": {
+          "messageValues": [
+            {
+              "role": "system",
+              "content": "Você é o Intake Agent do WebfullSec CRM. Extraia do áudio do cliente as seguintes chaves num JSON: titulo_projeto, nome_cliente, prioridade (Baixa, Normal, Alta, Urgente), categoria (Site, Automacao, Beat), resumo_contexto."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "name": "AI Agent (Extração Zod/Structured)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO projetos (titulo_projeto, categoria, status_projeto, prioridade, resumo_ia_contexto) VALUES ($1, $2, 'Briefing', $3, $4);",
+        "options": {
+          "queryParameters": "={{ $json.message.content.titulo_projeto }}, {{ $json.message.content.categoria }}, {{ $json.message.content.prioridade }}, {{ $json.message.content.resumo_contexto }}"
+        }
+      },
+      "name": "Postgres (Salvar no WebfullSec)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Evolution API Webhook (Recebe Mensagem)": {
+      "main": [
+        [
+          {
+            "node": "Check se é Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check se é Áudio": {
+      "main": [
+        [
+          {
+            "node": "Baixar Áudio OGG/MP3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Baixar Áudio OGG/MP3": {
+      "main": [
+        [
+          {
+            "node": "OpenAI (Whisper Transcrição)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Whisper Transcrição)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent (Extração Zod/Structured)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent (Extração Zod/Structured)": {
+      "main": [
+        [
+          {
+            "node": "Postgres (Salvar no WebfullSec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

@@ -1,0 +1,143 @@
+{
+  "name": "Content Agent (Criativo e Base de Conhecimento RAG)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "content-generation",
+        "options": {}
+      },
+      "name": "Webhook (Solicita Conteúdo)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "notes": "Recebe o ID do Projeto e um breve prompt (Ex: 'Preciso do texto pra home deste site')"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "name": "OpenAI (Gerar Embedding da Query)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAi API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT titulo_documento, conteudo_texto FROM base_conhecimento_vetorial WHERE projeto_id = $1 ORDER BY embedding <-> $2 LIMIT 3;",
+        "options": {
+          "queryParameters": "={{ $json.body.projetoId }}, {{ $json.data[0].embedding }}"
+        }
+      },
+      "name": "Postgres (Busca Similaridade pgvector)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [
+        600,
+        300
+      ],
+      "notes": "Pesquisa RAG nativa no BD"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "model": "gpt-4o",
+        "messages": {
+          "messageValues": [
+            {
+              "role": "system",
+              "content": "Você é o Content Agent Criativo. Sua função é escrever copys, e-mails ou roteiros para os projetos baseando-se no material de referência resgatado do banco de dados (RAG)."
+            },
+            {
+              "role": "user",
+              "content": "Pedido do usuário: {{ $node[\"Webhook (Solicita Conteúdo)\"].json.body.prompt }}\n\nReferências do Banco de Conhecimento (SOPs, Briefings, Histórico):\n{{ $json }}"
+            }
+          ]
+        }
+      },
+      "name": "OpenAI (Gera Copy Final)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node[\"Webhook (Solicita Conteúdo)\"].json.body.emailNotificacao }}",
+        "subject": "🤖 [Content Agent] Novo Conteúdo Gerado para o Projeto",
+        "message": "=Olá,\n\nO Content Agent finalizou o rascunho solicitado com base no conhecimento do seu projeto.\n\n---------\n{{ $json.message.content }}\n---------",
+        "options": {}
+      },
+      "name": "Gmail (Notificação Inbox)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook (Solicita Conteúdo)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI (Gerar Embedding da Query)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Gerar Embedding da Query)": {
+      "main": [
+        [
+          {
+            "node": "Postgres (Busca Similaridade pgvector)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres (Busca Similaridade pgvector)": {
+      "main": [
+        [
+          {
+            "node": "OpenAI (Gera Copy Final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI (Gera Copy Final)": {
+      "main": [
+        [
+          {
+            "node": "Gmail (Notificação Inbox)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
