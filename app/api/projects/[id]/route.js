@@ -1,11 +1,11 @@
 /**
  * ============================================
  * WebfullSec — API: Project Individual
- * GET    /api/projects/[id] — Detalhe com memórias
- * PATCH  /api/projects/[id] — Atualiza projeto
- * DELETE /api/projects/[id] — Remove projeto
+ * GET    /api/projects/[id] — Detalhe completo com blocos, memórias e agentes
+ * PATCH  /api/projects/[id] — Atualiza projeto (campos + propriedades Notion)
+ * DELETE /api/projects/[id] — Remove projeto e seus blocos
  * Autoria: Webfull (https://webfull.com.br)
- * Versão: 2.2.0
+ * Versão: 2.6.0
  * ============================================
  */
 
@@ -18,7 +18,9 @@ export async function GET(request, { params }) {
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        client: { select: { id: true, name: true, importanceLevel: true, phone: true, email: true } },
+        client: {
+          select: { id: true, name: true, importanceLevel: true, phone: true, email: true },
+        },
         tasks: {
           orderBy: [{ priority: 'desc' }, { position: 'asc' }],
           select: {
@@ -26,12 +28,28 @@ export async function GET(request, { params }) {
             estimatedTime: true, doDate: true, dueDate: true, completedAt: true,
           },
         },
+        blocks: {
+          where: { parentId: null }, // Apenas blocos raiz
+          orderBy: { position: 'asc' },
+          include: {
+            children: {
+              orderBy: { position: 'asc' },
+            },
+          },
+        },
         memories: {
           orderBy: { createdAt: 'desc' },
-          take: 20,
+          take: 30,
         },
         projectLink: true,
-        _count: { select: { tasks: true, memories: true } },
+        projectAgents: {
+          include: {
+            agent: {
+              select: { id: true, name: true, description: true, llmModel: true, isActive: true },
+            },
+          },
+        },
+        _count: { select: { tasks: true, memories: true, blocks: true } },
       },
     });
 
@@ -46,6 +64,8 @@ export async function GET(request, { params }) {
 
     return apiResponse({
       ...project,
+      // Parse de tags JSON para array
+      tags: project.tags ? JSON.parse(project.tags) : [],
       metrics: {
         completedTasks,
         overdueTasks,
@@ -76,7 +96,7 @@ export async function PATCH(request, { params }) {
     const allowedFields = [
       'title', 'description', 'category', 'status', 'priority',
       'generalContext', 'clientId', 'startDate', 'startedAt',
-      'dueDate', 'completedAt',
+      'dueDate', 'completedAt', 'icon', 'coverImage',
     ];
 
     for (const field of allowedFields) {
@@ -87,6 +107,11 @@ export async function PATCH(request, { params }) {
           data[field] = body[field];
         }
       }
+    }
+
+    // Tags como JSON string
+    if (body.tags !== undefined) {
+      data.tags = Array.isArray(body.tags) ? JSON.stringify(body.tags) : body.tags;
     }
 
     // Se mudou para in_progress e não tem startedAt, registrar
@@ -107,6 +132,11 @@ export async function PATCH(request, { params }) {
       data,
       include: {
         client: { select: { id: true, name: true } },
+        projectAgents: {
+          include: {
+            agent: { select: { id: true, name: true } },
+          },
+        },
       },
     });
 

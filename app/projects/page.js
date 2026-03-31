@@ -1,197 +1,299 @@
-'use client';
-
 /**
  * ============================================
- * WebfullSec — Página de Projetos
+ * WebfullSec — Projetos (Listagem com Múltiplas Visualizações)
+ * Kanban | Tabela | Timeline com filtros e busca
  * Autoria: Webfull (https://webfull.com.br)
- * Versão: 1.0.0
+ * Versão: 2.6.0
  * ============================================
  */
 
-import { useState, useEffect } from 'react';
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
-import { PROJECT_CATEGORIES, PROJECT_STATUSES } from '@/lib/constants';
-import { formatDate } from '@/lib/utils';
+import KanbanBoard from '@/components/projects/KanbanBoard';
+import ProjectTable from '@/components/projects/ProjectTable';
+import TimelineView from '@/components/projects/TimelineView';
+import { PROJECT_STATUSES, PROJECT_CATEGORIES } from '@/lib/constants';
+
+// Tipos de visualização disponíveis
+const VIEW_MODES = [
+  { value: 'kanban', label: 'Kanban', icon: '◫' },
+  { value: 'table', label: 'Tabela', icon: '☰' },
+  { value: 'timeline', label: 'Timeline', icon: '⟶' },
+];
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState([]);
-  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [catFilter, setCatFilter] = useState('all');
-  const [form, setForm] = useState({
-    title: '', description: '', category: 'site', priority: 2, clientId: '', startDate: '', dueDate: '',
-  });
+  const [viewMode, setViewMode] = useState('kanban');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newProject, setNewProject] = useState({ title: '', category: 'site', priority: 2, icon: '📁' });
+
+  // ==========================================
+  // Fetch de dados
+  // ==========================================
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects || []);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar projetos:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchProjects();
-    fetchClients();
-  }, [catFilter]);
+  }, [fetchProjects]);
 
-  const fetchProjects = async () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (catFilter !== 'all') params.set('category', catFilter);
+  // ==========================================
+  // Filtros
+  // ==========================================
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (filterStatus !== 'all' && p.status !== filterStatus) return false;
+      if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!p.title.toLowerCase().includes(q) && !p.description?.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [projects, filterStatus, filterCategory, searchQuery]);
+
+  // ==========================================
+  // Ações
+  // ==========================================
+
+  /** Atualiza o status de um projeto (usado pelo Kanban drag) */
+  const handleUpdateStatus = useCallback(async (projectId, newStatus) => {
+    // Atualização otimista
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
+    );
+
     try {
-      const res = await fetch(`/api/projects?${params}`);
-      if (res.ok) { const data = await res.json(); setProjects(data.projects || []); }
-    } catch { /* silencioso */ }
-    setLoading(false);
-  };
+      await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } catch (err) {
+      console.error('Erro ao atualizar status:', err);
+      fetchProjects(); // Reverter em caso de erro
+    }
+  }, [fetchProjects]);
 
-  const fetchClients = async () => {
-    try {
-      const res = await fetch('/api/clients?active=true');
-      if (res.ok) { const data = await res.json(); setClients(data.clients || []); }
-    } catch { /* silencioso */ }
-  };
+  /** Cria um novo projeto */
+  const handleCreateProject = useCallback(async () => {
+    if (!newProject.title.trim()) return;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          clientId: form.clientId || null,
-          startDate: form.startDate || null,
-          dueDate: form.dueDate || null,
-        }),
+        body: JSON.stringify(newProject),
       });
-      if (res.ok) { setShowModal(false); setForm({ title: '', description: '', category: 'site', priority: 2, clientId: '', startDate: '', dueDate: '' }); fetchProjects(); }
-    } catch { /* silencioso */ }
-  };
 
-  const getCatIcon = (cat) => {
-    const found = PROJECT_CATEGORIES.find(c => c.value === cat);
-    return found?.label?.split(' ')[0] || '📁';
-  };
+      if (res.ok) {
+        const created = await res.json();
+        setShowNewModal(false);
+        setNewProject({ title: '', category: 'site', priority: 2, icon: '📁' });
+        // Navegar para a página do novo projeto
+        router.push(`/projects/${created.id}`);
+      }
+    } catch (err) {
+      console.error('Erro ao criar projeto:', err);
+    }
+  }, [newProject, router]);
 
-  const getStatusBadge = (status) => {
-    const found = PROJECT_STATUSES.find(s => s.value === status);
-    const classMap = {
-      planning: 'badge-muted', in_progress: 'badge-accent',
-      review: 'badge-warning', completed: 'badge-success', archived: 'badge-muted',
-    };
-    return <span className={`badge ${classMap[status] || 'badge-muted'}`}>{found?.label || status}</span>;
-  };
+  // ==========================================
+  // Render
+  // ==========================================
 
   return (
     <AppShell pageTitle="Projetos">
-      <div className="page-header">
-        <div>
-          <h2 className="page-title">📁 Projetos</h2>
-          <p className="page-subtitle">{projects.length} projetos</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Novo Projeto</button>
-      </div>
-
-      <div className="tabs" style={{ marginBottom: 'var(--space-lg)' }}>
-        <button className={`tab ${catFilter === 'all' ? 'active' : ''}`} onClick={() => setCatFilter('all')}>Todos</button>
-        {PROJECT_CATEGORIES.map(c => (
-          <button key={c.value} className={`tab ${catFilter === c.value ? 'active' : ''}`} onClick={() => setCatFilter(c.value)}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="empty-state"><div className="spinner" /></div>
-      ) : projects.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📂</div>
-          <p className="empty-state-title">Nenhum projeto encontrado</p>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Novo Projeto</button>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 'var(--space-md)' }}>
-          {projects.map(project => {
-            const completedTasks = project._count?.completedTasks || 0;
-            const totalTasks = project._count?.tasks || 0;
-            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-            return (
-              <a key={project.id} href={`/projects/${project.id}`} className="card" style={{ textDecoration: 'none', display: 'block' }}>
-                <div className="card-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                    <span style={{ fontSize: 'var(--text-xl)' }}>{getCatIcon(project.category)}</span>
-                    <h3 className="card-title">{project.title}</h3>
-                  </div>
-                  {getStatusBadge(project.status)}
-                </div>
-                {project.description && (
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 'var(--space-md)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {project.description}
-                  </p>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-sm)' }}>
-                  <span>👤 {project.client?.name || 'Sem cliente'}</span>
-                  <span className="font-mono">{completedTasks}/{totalTasks} tarefas</span>
-                </div>
-                {totalTasks > 0 && (
-                  <div className="progress-bar">
-                    <div className={`progress-fill ${progress === 100 ? 'success' : progress > 80 ? 'warning' : ''}`} style={{ width: `${progress}%` }} />
-                  </div>
-                )}
-              </a>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal Criar */}
-      {showModal && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Novo Projeto</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+      <div className="projects-page">
+        {/* Cabeçalho com visualizações e filtros */}
+        <div className="projects-header">
+          <div className="projects-header-left">
+            {/* Alternador de visualizações */}
+            <div className="view-switcher" role="tablist" aria-label="Modo de visualização">
+              {VIEW_MODES.map((mode) => (
+                <button
+                  key={mode.value}
+                  className={`view-switcher-btn ${viewMode === mode.value ? 'active' : ''}`}
+                  onClick={() => setViewMode(mode.value)}
+                  role="tab"
+                  aria-selected={viewMode === mode.value}
+                  title={mode.label}
+                >
+                  <span className="view-switcher-icon">{mode.icon}</span>
+                  <span className="view-switcher-label">{mode.label}</span>
+                </button>
+              ))}
             </div>
-            <form onSubmit={handleSubmit}>
+
+            {/* Filtros */}
+            <div className="projects-filters">
+              <select
+                className="projects-filter-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                aria-label="Filtrar por status"
+              >
+                <option value="all">Todos os Status</option>
+                {PROJECT_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.icon} {s.label}</option>
+                ))}
+              </select>
+
+              <select
+                className="projects-filter-select"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                aria-label="Filtrar por categoria"
+              >
+                <option value="all">Todas Categorias</option>
+                {PROJECT_CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="projects-header-right">
+            {/* Busca */}
+            <div className="projects-search">
+              <span className="projects-search-icon">🔍</span>
+              <input
+                type="text"
+                className="projects-search-input"
+                placeholder="Buscar projetos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Buscar projetos"
+              />
+            </div>
+
+            {/* Botão Novo Projeto */}
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowNewModal(true)}
+            >
+              + Nova Página
+            </button>
+          </div>
+        </div>
+
+        {/* Contagem */}
+        <div className="projects-count">
+          <span className="text-muted">
+            {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''}
+            {filterStatus !== 'all' || filterCategory !== 'all' || searchQuery ? ' (filtrado)' : ''}
+          </span>
+        </div>
+
+        {/* Conteúdo baseado na visualização */}
+        {loading ? (
+          <div className="empty-state"><div className="spinner" /></div>
+        ) : (
+          <>
+            {viewMode === 'kanban' && (
+              <KanbanBoard
+                projects={filteredProjects}
+                onUpdateStatus={handleUpdateStatus}
+              />
+            )}
+            {viewMode === 'table' && (
+              <ProjectTable projects={filteredProjects} />
+            )}
+            {viewMode === 'timeline' && (
+              <TimelineView projects={filteredProjects} />
+            )}
+          </>
+        )}
+
+        {/* Modal de Novo Projeto */}
+        {showNewModal && (
+          <div className="modal-backdrop" onClick={() => setShowNewModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2 className="modal-title">📁 Nova Página de Projeto</h2>
+                <button className="modal-close" onClick={() => setShowNewModal(false)}>×</button>
+              </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="proj-title">Título *</label>
-                  <input id="proj-title" className="form-input" type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required autoFocus />
+                  <label className="form-label">Título do Projeto</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex: Website Empresa XYZ"
+                    value={newProject.title}
+                    onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+                  />
                 </div>
+
                 <div className="form-group">
-                  <label className="form-label" htmlFor="proj-desc">Descrição</label>
-                  <textarea id="proj-desc" className="form-textarea" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+                  <label className="form-label">Categoria</label>
+                  <select
+                    className="form-input"
+                    value={newProject.category}
+                    onChange={(e) => setNewProject({ ...newProject, category: e.target.value })}
+                  >
+                    {PROJECT_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="proj-cat">Categoria</label>
-                    <select id="proj-cat" className="form-select" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                      {PROJECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="proj-client">Cliente</label>
-                    <select id="proj-client" className="form-select" value={form.clientId} onChange={e => setForm({ ...form, clientId: e.target.value })}>
-                      <option value="">Nenhum</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="proj-start">Data Início</label>
-                    <input id="proj-start" className="form-input" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="proj-due">Prazo</label>
-                    <input id="proj-due" className="form-input" type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} />
+
+                <div className="form-group">
+                  <label className="form-label">Ícone</label>
+                  <div className="notion-icon-picker-grid" style={{ gridTemplateColumns: 'repeat(10, 1fr)' }}>
+                    {['📁', '🚀', '💻', '🌐', '⚡', '🎵', '🎨', '📊', '🔧', '📱', '🏗️', '📋', '🎯', '🔒', '💡'].map((icon) => (
+                      <button
+                        key={icon}
+                        type="button"
+                        className={`notion-icon-picker-item ${newProject.icon === icon ? 'active' : ''}`}
+                        style={newProject.icon === icon ? { background: 'var(--accent-glow)', border: '1px solid var(--accent)' } : {}}
+                        onClick={() => setNewProject({ ...newProject, icon })}
+                      >
+                        {icon}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Criar Projeto</button>
+                <button className="btn btn-ghost" onClick={() => setShowNewModal(false)}>Cancelar</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCreateProject}
+                  disabled={!newProject.title.trim()}
+                >
+                  Criar Projeto
+                </button>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </AppShell>
   );
 }

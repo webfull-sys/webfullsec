@@ -1,7 +1,7 @@
 // ============================================
 // WebfullSec — Schema do Banco de Dados
 // Autoria: Webfull (https://webfull.com.br)
-// Versão: 2.2.0
+// Versão: 2.6.0
 // ============================================
 // Reestruturado com 5 tabelas aprimoradas:
 // Client, Project, Task, InboxItem, Memory
@@ -81,6 +81,9 @@ model Project {
   status         String    @default("backlog")         // backlog, in_progress, waiting_client, completed, archived
   priority       Int       @default(2)                 // 1=Baixa, 2=Média, 3=Alta, 4=Urgente
   generalContext String?                               // Escopo do projeto + memória da IA (onde parou, decisões, etc)
+  icon           String?                               // Emoji ou ícone visual do projeto
+  coverImage     String?                               // URL da imagem de capa (estilo Notion)
+  tags           String?                               // JSON array de tags coloridas
   clientId       String?
   startDate      DateTime?                             // Data planejada de início
   startedAt      DateTime?                             // Data real que iniciou
@@ -90,10 +93,12 @@ model Project {
   updatedAt      DateTime  @updatedAt
 
   // Relacionamentos
-  client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  tasks       Task[]
-  memories    Memory[]
-  projectLink ProjectLink?
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  tasks         Task[]
+  memories      Memory[]
+  projectLink   ProjectLink?
+  blocks        ProjectBlock[]
+  projectAgents ProjectAgent[]
 
   @@index([status])
   @@index([clientId])
@@ -390,6 +395,55 @@ model Agent {
   updatedAt       DateTime @updatedAt
 
   interactions    AgentInteraction[]
+  projectAgents   ProjectAgent[]
+}
+
+// ============================================
+// Modelo: ProjectBlock (Blocos de conteúdo Notion-like)
+// Cada bloco representa um elemento dentro da página
+// do projeto (heading, parágrafo, todo, callout, etc.)
+// ============================================
+model ProjectBlock {
+  id         String   @id @default(cuid())
+  projectId  String
+  type       String   @default("paragraph")  // heading1, heading2, heading3, paragraph, todo,
+                                              // bulleted_list, numbered_list, toggle, callout,
+                                              // divider, code, quote, image, table, embed
+  content    String?                          // Conteúdo textual do bloco
+  properties String?                          // JSON com props extras (checked, color, language, url, etc.)
+  position   Int      @default(0)             // Ordem do bloco na página
+  parentId   String?                          // Para blocos aninhados (filhos de toggle, etc.)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relacionamentos
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   ProjectBlock? @relation("BlockChildren", fields: [parentId], references: [id])
+  children ProjectBlock[] @relation("BlockChildren")
+
+  @@index([projectId, position])
+  @@index([parentId])
+}
+
+// ============================================
+// Modelo: ProjectAgent (Vínculo Projeto ↔ Agente)
+// Permite associar múltiplos agentes IA a cada
+// projeto com diferentes papéis.
+// ============================================
+model ProjectAgent {
+  id        String   @id @default(cuid())
+  projectId String
+  agentId   String
+  role      String   @default("assistant")  // assistant, reviewer, executor
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, agentId])
+  @@index([projectId])
+  @@index([agentId])
 }
 
 // ============================================
