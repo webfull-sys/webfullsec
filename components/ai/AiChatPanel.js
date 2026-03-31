@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 
 /**
  * Painel de chat com o agente IA SecIA
@@ -21,6 +22,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  * @param {function} props.onNotification - Callback quando há nova notificação
  */
 export default function AiChatPanel({ isOpen, onClose, onNotification }) {
+  const pathname = usePathname();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,10 +122,10 @@ export default function AiChatPanel({ isOpen, onClose, onNotification }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai/n8n-chat', {
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, conversationId, agentType: 'general' }),
+        body: JSON.stringify({ message: text, conversationId, currentPath: pathname }),
       });
 
       if (!res.ok) {

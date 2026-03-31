@@ -209,7 +209,7 @@ export default function ProjectPage() {
             <span style={{ fontSize: '1.2rem' }}>🤖</span>
             <input 
               type="text" 
-              placeholder="Dar comando ao PM Agent ou Assistentes do projeto... (ex: Crie tarefas para finalizar o layout)" 
+              placeholder="Dar ordem ao(s) Agente(s) do projeto... (ex: Sintetize as anotações e crie as tarefas)"
               className="notion-input"
               style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)' }}
               onKeyDown={async (e) => {
@@ -218,20 +218,20 @@ export default function ProjectPage() {
                   if (!val) return;
                   e.target.disabled = true;
                   const originalPlaceholder = e.target.placeholder;
-                  e.target.placeholder = 'Enviando ao N8N...';
+                  e.target.placeholder = 'Orquestrando com a Equipe...';
                   e.target.value = '';
                   
                   try {
-                    await fetch('/api/ai/n8n-chat', {
+                    await fetch('/api/ai/chat', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ message: val, projectId: id, agentType: 'pm' })
+                      body: JSON.stringify({ message: val, currentPath: window.location.pathname })
                     });
-                    e.target.placeholder = 'Comando enviado! O agente atualizará o painel em breve.';
+                    e.target.placeholder = 'Comando delegado! Atualize painel em breve.';
                     setTimeout(() => { e.target.placeholder = originalPlaceholder }, 3000);
                   } catch (err) {
                     console.error(err);
-                    e.target.placeholder = 'Erro de conexão com o agente.';
+                    e.target.placeholder = 'Erro de conexão com o Orchestrator.';
                   } finally {
                     e.target.disabled = false;
                   }
