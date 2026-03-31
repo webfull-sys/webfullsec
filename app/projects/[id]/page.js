@@ -203,6 +203,45 @@ export default function ProjectPage() {
         {/* Divisor visual */}
         <hr className="notion-divider" />
 
+        {/* Comando do PM Agent (Integração N8N) */}
+        {project.projectAgents?.length > 0 && (
+          <div className="agent-command-bar" style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ fontSize: '1.2rem' }}>🤖</span>
+            <input 
+              type="text" 
+              placeholder="Dar comando ao PM Agent ou Assistentes do projeto... (ex: Crie tarefas para finalizar o layout)" 
+              className="notion-input"
+              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)' }}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') {
+                  const val = e.target.value.trim();
+                  if (!val) return;
+                  e.target.disabled = true;
+                  const originalPlaceholder = e.target.placeholder;
+                  e.target.placeholder = 'Enviando ao N8N...';
+                  e.target.value = '';
+                  
+                  try {
+                    await fetch('/api/ai/n8n-chat', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ message: val, projectId: id, agentType: 'pm' })
+                    });
+                    e.target.placeholder = 'Comando enviado! O agente atualizará o painel em breve.';
+                    setTimeout(() => { e.target.placeholder = originalPlaceholder }, 3000);
+                  } catch (err) {
+                    console.error(err);
+                    e.target.placeholder = 'Erro de conexão com o agente.';
+                  } finally {
+                    e.target.disabled = false;
+                  }
+                }
+              }}
+            />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>↵ Enter</span>
+          </div>
+        )}
+
         {/* Editor de Blocos */}
         <BlockEditor
           blocks={blocks}

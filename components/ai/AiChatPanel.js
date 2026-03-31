@@ -120,10 +120,10 @@ export default function AiChatPanel({ isOpen, onClose, onNotification }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai/chat', {
+      const res = await fetch('/api/ai/n8n-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, conversationId }),
+        body: JSON.stringify({ message: text, conversationId, agentType: 'general' }),
       });
 
       if (!res.ok) {
