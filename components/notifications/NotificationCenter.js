@@ -67,9 +67,12 @@ export default function NotificationCenter() {
 
   // Polling de contagem a cada 15 segundos
   useEffect(() => {
-    fetchUnreadCount();
+    const initial = setTimeout(fetchUnreadCount, 0);
     const interval = setInterval(fetchUnreadCount, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, [fetchUnreadCount]);
 
   // Fechar dropdown ao clicar fora

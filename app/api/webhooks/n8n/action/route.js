@@ -13,7 +13,10 @@ import prisma from '@/lib/prisma';
 
 // Verifica a chave de segurança para impedir acessos de terceiros
 const authMiddleware = (request) => {
-  const secret = process.env.WEBHOOK_API_KEY || 'dev-webhook-key';
+  const secret = process.env.WEBHOOK_API_KEY;
+  if (!secret) {
+    return false;
+  }
   
   // O N8N pode mandar pelo header padrão de Authorization ou X-Webfull-Security-Key
   const authHeader = request.headers.get('authorization') || request.headers.get('x-webfull-security-key');
@@ -30,6 +33,10 @@ const authMiddleware = (request) => {
  */
 export async function POST(request) {
   try {
+    if (!process.env.WEBHOOK_API_KEY) {
+      return NextResponse.json({ success: false, error: 'WEBHOOK_API_KEY não configurada' }, { status: 500 });
+    }
+
     // 1 - Validação de Segurança (Zero-Trust)
     if (!authMiddleware(request)) {
       return NextResponse.json({ success: false, error: 'Acesso Negado: Chave de API inválida' }, { status: 401 });

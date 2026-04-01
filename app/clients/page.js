@@ -8,7 +8,7 @@
  * ============================================
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { PRIORITY_LEVELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -23,9 +23,7 @@ export default function ClientsPage() {
     nome_cliente: '', email: '', telefone: '', notas_contexto: '', nivel_prioridade: 3,
   });
 
-  useEffect(() => { fetchClients(); }, [searchQuery]);
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
@@ -34,7 +32,12 @@ export default function ClientsPage() {
       if (res.ok) { const data = await res.json(); setClients(Array.isArray(data) ? data : data.clients || []); }
     } catch { /* silencioso */ }
     setLoading(false);
-  };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchClients, 0);
+    return () => clearTimeout(timer);
+  }, [fetchClients]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

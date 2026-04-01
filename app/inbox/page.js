@@ -8,7 +8,7 @@
  * ============================================
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { INBOX_SOURCES } from '@/lib/constants';
 
@@ -18,10 +18,9 @@ export default function InboxPage() {
   const [showModal, setShowModal] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('all');
   const [form, setForm] = useState({ title: '', content: '', source: 'manual', priority: 2 });
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
-  useEffect(() => { fetchItems(); }, [sourceFilter]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (sourceFilter !== 'all') params.set('source', sourceFilter);
@@ -30,7 +29,16 @@ export default function InboxPage() {
       if (res.ok) { const data = await res.json(); setItems(data.items || []); }
     } catch { /* silencioso */ }
     setLoading(false);
-  };
+  }, [sourceFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchItems, 0);
+    return () => clearTimeout(timer);
+  }, [fetchItems]);
+  useEffect(() => {
+    const interval = setInterval(() => setNowTs(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +80,7 @@ export default function InboxPage() {
   };
 
   const timeSince = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = nowTs - new Date(dateStr).getTime();
     const m = Math.floor(diff / 60000);
     if (m < 60) return `${m}min atrás`;
     const h = Math.floor(m / 60);

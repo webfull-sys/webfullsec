@@ -13,6 +13,20 @@ import { useState } from 'react';
 import { PROJECT_STATUSES, PROJECT_CATEGORIES, PRIORITY_LEVELS, AGENT_ROLES } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 
+function PropertyRow({ label, icon, value, children, fieldKey, editingField, setEditingField }) {
+  return (
+    <div className="notion-prop-row" onClick={() => setEditingField(fieldKey)}>
+      <div className="notion-prop-label">
+        <span className="notion-prop-icon">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div className="notion-prop-value">
+        {editingField === fieldKey ? children : value}
+      </div>
+    </div>
+  );
+}
+
 /**
  * ProjectProperties — Propriedades editáveis do projeto
  * @param {Object} props
@@ -40,21 +54,6 @@ export default function ProjectProperties({
   const currentPriority = PRIORITY_LEVELS.find((p) => p.value === project.priority);
   const currentClient = project.client;
 
-  /**
-   * Renderiza uma linha de propriedade
-   */
-  const PropertyRow = ({ label, icon, value, children, fieldKey }) => (
-    <div className="notion-prop-row" onClick={() => setEditingField(fieldKey)}>
-      <div className="notion-prop-label">
-        <span className="notion-prop-icon">{icon}</span>
-        <span>{label}</span>
-      </div>
-      <div className="notion-prop-value">
-        {editingField === fieldKey ? children : value}
-      </div>
-    </div>
-  );
-
   // Agentes vinculados ao projeto
   const linkedAgents = project.projectAgents || [];
   // Agentes disponíveis (não vinculados)
@@ -65,7 +64,7 @@ export default function ProjectProperties({
   return (
     <div className="notion-properties" role="region" aria-label="Propriedades do projeto">
       {/* Status */}
-      <PropertyRow label="Status" icon={currentStatus?.icon || '📋'} fieldKey="status"
+      <PropertyRow label="Status" icon={currentStatus?.icon || '📋'} fieldKey="status" editingField={editingField} setEditingField={setEditingField}
         value={
           <span
             className={`badge badge-${project.status === 'completed' ? 'success' : project.status === 'in_progress' ? 'accent' : project.status === 'waiting_client' ? 'warning' : 'muted'}`}
@@ -88,7 +87,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Categoria */}
-      <PropertyRow label="Categoria" icon="📂" fieldKey="category"
+      <PropertyRow label="Categoria" icon="📂" fieldKey="category" editingField={editingField} setEditingField={setEditingField}
         value={<span>{currentCategory?.label || project.category}</span>}
       >
         <select
@@ -105,7 +104,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Prioridade */}
-      <PropertyRow label="Prioridade" icon="🎯" fieldKey="priority"
+      <PropertyRow label="Prioridade" icon="🎯" fieldKey="priority" editingField={editingField} setEditingField={setEditingField}
         value={
           <span style={{ color: currentPriority?.color }}>
             {currentPriority?.icon} {currentPriority?.label}
@@ -126,7 +125,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Cliente */}
-      <PropertyRow label="Cliente" icon="👤" fieldKey="client"
+      <PropertyRow label="Cliente" icon="👤" fieldKey="client" editingField={editingField} setEditingField={setEditingField}
         value={<span>{currentClient?.name || currentClient?.nome_cliente || 'Nenhum'}</span>}
       >
         <select
@@ -144,7 +143,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Data Início */}
-      <PropertyRow label="Início" icon="📅" fieldKey="startDate"
+      <PropertyRow label="Início" icon="📅" fieldKey="startDate" editingField={editingField} setEditingField={setEditingField}
         value={<span className="font-mono">{project.startDate ? formatDate(project.startDate) : '—'}</span>}
       >
         <input
@@ -158,7 +157,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Prazo */}
-      <PropertyRow label="Prazo" icon="⏰" fieldKey="dueDate"
+      <PropertyRow label="Prazo" icon="⏰" fieldKey="dueDate" editingField={editingField} setEditingField={setEditingField}
         value={<span className="font-mono">{project.dueDate ? formatDate(project.dueDate) : '—'}</span>}
       >
         <input
@@ -172,7 +171,7 @@ export default function ProjectProperties({
       </PropertyRow>
 
       {/* Tags */}
-      <PropertyRow label="Tags" icon="🏷️" fieldKey="tags"
+      <PropertyRow label="Tags" icon="🏷️" fieldKey="tags" editingField={editingField} setEditingField={setEditingField}
         value={
           <div className="notion-tags">
             {(project.tags || []).map((tag, i) => (

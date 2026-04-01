@@ -30,9 +30,11 @@ export default function CommandPalette({ isOpen, onClose }) {
   // Foca no input ao abrir
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setResults([]);
-      setSelectedIndex(0);
+      setTimeout(() => {
+        setQuery('');
+        setResults([]);
+        setSelectedIndex(0);
+      }, 0);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
@@ -40,14 +42,15 @@ export default function CommandPalette({ isOpen, onClose }) {
   // Busca global debounced
   useEffect(() => {
     if (!query.trim()) {
-      // Mostra navegação rápida quando vazio
-      setResults(NAV_ITEMS.map(item => ({
-        type: 'nav',
-        title: item.label,
-        description: `Ir para ${item.label}`,
-        href: item.href,
-        icon: getTypeIcon('nav'),
-      })));
+      setTimeout(() => {
+        setResults(NAV_ITEMS.map(item => ({
+          type: 'nav',
+          title: item.label,
+          description: `Ir para ${item.label}`,
+          href: item.href,
+          icon: getTypeIcon('nav'),
+        })));
+      }, 0);
       return;
     }
 
@@ -78,6 +81,14 @@ export default function CommandPalette({ isOpen, onClose }) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Seleciona um item
+  const handleSelect = useCallback((item) => {
+    if (item.href) {
+      router.push(item.href);
+    }
+    onClose();
+  }, [router, onClose]);
+
   // Navegação por teclado
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
@@ -91,15 +102,7 @@ export default function CommandPalette({ isOpen, onClose }) {
     } else if (e.key === 'Enter' && results[selectedIndex]) {
       handleSelect(results[selectedIndex]);
     }
-  }, [results, selectedIndex, onClose]);
-
-  // Seleciona um item
-  const handleSelect = (item) => {
-    if (item.href) {
-      router.push(item.href);
-    }
-    onClose();
-  };
+  }, [results, selectedIndex, onClose, handleSelect]);
 
   if (!isOpen) return null;
 

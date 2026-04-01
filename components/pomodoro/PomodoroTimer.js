@@ -9,7 +9,7 @@
  * ============================================
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /** Circunferência do anel SVG */
 const RADIUS = 90;
@@ -36,21 +36,6 @@ export default function PomodoroTimer({ workMinutes = 25, breakMinutes = 5, task
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
-
-  // Timer principal
-  useEffect(() => {
-    if (isRunning && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      // Sessão concluída
-      clearInterval(intervalRef.current);
-      handleSessionComplete();
-    }
-
-    return () => clearInterval(intervalRef.current);
-  }, [isRunning, timeLeft]);
 
   // Ao completar uma sessão, alterna entre foco e pausa
   const handleSessionComplete = useCallback(() => {
@@ -79,6 +64,20 @@ export default function PomodoroTimer({ workMinutes = 25, breakMinutes = 5, task
     }
     setIsRunning(false);
   }, [isBreak, breakMinutes, workMinutes]);
+
+  // Timer principal
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      clearInterval(intervalRef.current);
+      setTimeout(handleSessionComplete, 0);
+    }
+
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, timeLeft, handleSessionComplete]);
 
   const toggleTimer = () => setIsRunning(prev => !prev);
 
