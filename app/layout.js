@@ -16,8 +16,6 @@ export const metadata = {
   keywords: 'CRM, gestão de projetos, pomodoro, produtividade, AI, secretária virtual',
   authors: [{ name: 'Webfull', url: 'https://webfull.com.br' }],
   robots: 'noindex, nofollow', // Sistema privado
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#060b18',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
@@ -30,14 +28,17 @@ export const metadata = {
   },
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#060b18',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <head>
-        <meta charSet="utf-8" />
-        <meta name="color-scheme" content="dark" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <link rel="manifest" href="/manifest.json" />
       </head>
       <body>
         {/* Skip link para acessibilidade */}

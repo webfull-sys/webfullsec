@@ -37,7 +37,7 @@ export async function GET(request) {
     const projects = await prisma.project.findMany({
       where,
       include: {
-        client: { select: { id: true, name: true, importanceLevel: true } },
+        client: { select: { id: true, nome_cliente: true, nivel_prioridade: true } },
         projectAgents: {
           include: {
             agent: { select: { id: true, name: true, description: true } },
@@ -62,6 +62,11 @@ export async function GET(request) {
         });
         return {
           ...project,
+          client: project.client ? { 
+            ...project.client, 
+            name: project.client.nome_cliente,
+            importanceLevel: project.client.nivel_prioridade 
+          } : null,
           _count: {
             ...project._count,
             completedTasks,
@@ -111,7 +116,7 @@ export async function POST(request) {
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
       },
       include: {
-        client: { select: { id: true, name: true } },
+        client: { select: { id: true, nome_cliente: true } },
       },
     });
 
@@ -125,7 +130,13 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json(project, { status: 201 });
+    // Compatibilidade com frontend (name)
+    const formattedProject = {
+      ...project,
+      client: project.client ? { ...project.client, name: project.client.nome_cliente } : null
+    };
+
+    return NextResponse.json(formattedProject, { status: 201 });
   } catch (error) {
     console.error('Erro POST /api/projects:', error);
     return NextResponse.json(

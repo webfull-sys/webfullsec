@@ -15,6 +15,7 @@ import AppShell from '@/components/layout/AppShell';
 import ProjectHeader from '@/components/projects/ProjectHeader';
 import ProjectProperties from '@/components/projects/ProjectProperties';
 import BlockEditor from '@/components/projects/BlockEditor';
+import ProjectTimeline from '@/components/projects/ProjectTimeline';
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -54,7 +55,14 @@ export default function ProjectPage() {
       const res = await fetch('/api/clients?active=true');
       if (res.ok) {
         const data = await res.json();
-        setClients(data.clients || data.data?.clients || []);
+        const clientArray = Array.isArray(data) ? data : (data.clients || data.data?.clients || []);
+        // Transformar para usar os mesmos nomes de propriedade para o componente original
+        const mappedClients = clientArray.map(c => ({
+          ...c,
+          id: c.id,
+          name: c.nome_cliente || c.name,
+        }));
+        setClients(mappedClients);
       }
     } catch { /* silencioso */ }
   }, []);
@@ -242,6 +250,9 @@ export default function ProjectPage() {
           </div>
         )}
 
+        {/* Resumo & Cronologia IA */}
+        <ProjectTimeline project={project} onUpdate={handleUpdateProject} />
+
         {/* Editor de Blocos */}
         <BlockEditor
           blocks={blocks}
@@ -249,8 +260,8 @@ export default function ProjectPage() {
           onBlocksChange={setBlocks}
         />
 
-        {/* Sidebar lateral: Tarefas + Memórias */}
-        {(project.tasks?.length > 0 || project.memories?.length > 0) && (
+        {/* Sidebar lateral: Tarefas */}
+        {project.tasks?.length > 0 && (
           <div className="notion-sidebar-section">
             {/* Tarefas vinculadas */}
             {project.tasks?.length > 0 && (
@@ -265,26 +276,6 @@ export default function ProjectPage() {
                       <span className={task.status === 'done' ? 'text-through' : ''}>
                         {task.title}
                       </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Últimas memórias */}
-            {project.memories?.length > 0 && (
-              <div className="notion-mini-section">
-                <h3 className="notion-mini-title">💭 Atividade Recente</h3>
-                <div className="notion-mini-list">
-                  {project.memories.slice(0, 5).map((mem) => (
-                    <div key={mem.id} className="notion-mini-item notion-memory">
-                      <span className="notion-memory-type">
-                        {mem.type === 'milestone' ? '🏆' : mem.type === 'blocker' ? '🚧' : '📝'}
-                      </span>
-                      <div>
-                        <span className="notion-memory-content">{mem.content}</span>
-                        <span className="notion-memory-date">{new Date(mem.createdAt).toLocaleDateString('pt-BR')}</span>
-                      </div>
                     </div>
                   ))}
                 </div>

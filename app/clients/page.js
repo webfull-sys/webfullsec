@@ -20,7 +20,7 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingClient, setEditingClient] = useState(null);
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', company: '', urgencyLevel: 1, notes: '',
+    nome_cliente: '', email: '', telefone: '', notas_contexto: '', nivel_prioridade: 3,
   });
 
   useEffect(() => { fetchClients(); }, [searchQuery]);
@@ -31,7 +31,7 @@ export default function ClientsPage() {
     if (searchQuery) params.set('search', searchQuery);
     try {
       const res = await fetch(`/api/clients?${params}`);
-      if (res.ok) { const data = await res.json(); setClients(data.clients || []); }
+      if (res.ok) { const data = await res.json(); setClients(Array.isArray(data) ? data : data.clients || []); }
     } catch { /* silencioso */ }
     setLoading(false);
   };
@@ -42,7 +42,7 @@ export default function ClientsPage() {
     const method = editingClient ? 'PATCH' : 'POST';
     try {
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      if (res.ok) { setShowModal(false); setEditingClient(null); setForm({ name: '', email: '', phone: '', company: '', urgencyLevel: 1, notes: '' }); fetchClients(); }
+      if (res.ok) { setShowModal(false); setEditingClient(null); setForm({ nome_cliente: '', email: '', telefone: '', notas_contexto: '', nivel_prioridade: 3 }); fetchClients(); }
     } catch { /* silencioso */ }
   };
 
@@ -53,12 +53,12 @@ export default function ClientsPage() {
 
   const openEdit = (client) => {
     setEditingClient(client);
-    setForm({ name: client.name, email: client.email || '', phone: client.phone || '', company: client.company || '', urgencyLevel: client.urgencyLevel, notes: client.notes || '' });
+    setForm({ nome_cliente: client.nome_cliente, email: client.email || '', telefone: client.telefone || '', notas_contexto: client.notas_contexto || '', nivel_prioridade: client.nivel_prioridade || 3 });
     setShowModal(true);
   };
 
-  const urgencyColors = { 1: 'var(--text-secondary)', 2: 'var(--accent)', 3: 'var(--warning)', 4: 'var(--danger)' };
-  const urgencyLabels = { 1: 'Baixa', 2: 'Média', 3: 'Alta', 4: 'Crítica' };
+  const urgencyColors = { 1: 'var(--text-secondary)', 2: 'var(--text-secondary)', 3: 'var(--accent)', 4: 'var(--warning)', 5: 'var(--danger)' };
+  const urgencyLabels = { 1: 'Muito Baixa', 2: 'Baixa', 3: 'Média', 4: 'Alta', 5: 'VIP' };
 
   return (
     <AppShell pageTitle="Clientes">
@@ -69,7 +69,7 @@ export default function ClientsPage() {
         </div>
         <div className="page-actions">
           <input className="form-input" type="text" placeholder="Buscar cliente..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ width: '220px' }} />
-          <button className="btn btn-primary" onClick={() => { setEditingClient(null); setForm({ name: '', email: '', phone: '', company: '', urgencyLevel: 1, notes: '' }); setShowModal(true); }}>+ Novo Cliente</button>
+          <button className="btn btn-primary" onClick={() => { setEditingClient(null); setForm({ nome_cliente: '', email: '', telefone: '', notas_contexto: '', nivel_prioridade: 3 }); setShowModal(true); }}>+ Novo Cliente</button>
         </div>
       </div>
 
@@ -98,21 +98,21 @@ export default function ClientsPage() {
               {clients.map(client => (
                 <tr key={client.id}>
                   <td>
-                    <strong style={{ color: 'var(--text-primary)' }}>{client.name}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{client.nome_cliente}</strong>
                   </td>
-                  <td>{client.company || '—'}</td>
+                  <td>{client.status_cliente || '—'}</td>
                   <td>
                     <div style={{ fontSize: 'var(--text-xs)' }}>
                       {client.email && <div>📧 {client.email}</div>}
-                      {client.phone && <div>📱 {client.phone}</div>}
+                      {client.telefone && <div>📱 {client.telefone}</div>}
                     </div>
                   </td>
                   <td>
-                    <span className="badge" style={{ background: `${urgencyColors[client.urgencyLevel]}22`, color: urgencyColors[client.urgencyLevel], border: `1px solid ${urgencyColors[client.urgencyLevel]}44` }}>
-                      {urgencyLabels[client.urgencyLevel]}
+                    <span className="badge" style={{ background: `${urgencyColors[client.nivel_prioridade]}22`, color: urgencyColors[client.nivel_prioridade], border: `1px solid ${urgencyColors[client.nivel_prioridade]}44` }}>
+                      {urgencyLabels[client.nivel_prioridade]}
                     </span>
                   </td>
-                  <td className="font-mono">{client._count?.projects || 0}</td>
+                  <td className="font-mono">{client._count?.projetos || 0}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
                       <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEdit(client)} title="Editar">✏️</button>
@@ -138,7 +138,7 @@ export default function ClientsPage() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label" htmlFor="cl-name">Nome *</label>
-                  <input id="cl-name" className="form-input" type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required autoFocus />
+                  <input id="cl-name" className="form-input" type="text" value={form.nome_cliente} onChange={e => setForm({ ...form, nome_cliente: e.target.value })} required autoFocus />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -147,24 +147,24 @@ export default function ClientsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label" htmlFor="cl-phone">Telefone</label>
-                    <input id="cl-phone" className="form-input" type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                    <input id="cl-phone" className="form-input" type="tel" value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label" htmlFor="cl-company">Empresa</label>
-                    <input id="cl-company" className="form-input" type="text" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="cl-urgency">Urgência</label>
-                    <select id="cl-urgency" className="form-select" value={form.urgencyLevel} onChange={e => setForm({ ...form, urgencyLevel: parseInt(e.target.value) })}>
-                      {PRIORITY_LEVELS.map(p => <option key={p.value} value={p.value}>{p.icon} {p.label}</option>)}
+                    <label className="form-label" htmlFor="cl-urgency">Nível de Importância</label>
+                    <select id="cl-urgency" className="form-select" value={form.nivel_prioridade} onChange={e => setForm({ ...form, nivel_prioridade: parseInt(e.target.value) })}>
+                      <option value="1">⚪ Muito Baixa</option>
+                      <option value="2">🟢 Baixa</option>
+                      <option value="3">🟡 Média</option>
+                      <option value="4">🟠 Alta</option>
+                      <option value="5">🔴 VIP</option>
                     </select>
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="cl-notes">Notas</label>
-                  <textarea id="cl-notes" className="form-textarea" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+                  <label className="form-label" htmlFor="cl-notes">Notas / Contexto</label>
+                  <textarea id="cl-notes" className="form-textarea" value={form.notas_contexto} onChange={e => setForm({ ...form, notas_contexto: e.target.value })} />
                 </div>
               </div>
               <div className="modal-footer">

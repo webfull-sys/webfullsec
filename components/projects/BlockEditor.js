@@ -343,8 +343,12 @@ export default function BlockEditor({ blocks, projectId, onBlocksChange }) {
       <div
         className="block-editor-footer"
         onClick={() => {
-          const lastBlock = blocks[blocks.length - 1];
-          if (lastBlock) createBlock(lastBlock.id);
+          if (blocks.length === 0) {
+            createBlock(null);
+          } else {
+            const lastBlock = blocks[blocks.length - 1];
+            createBlock(lastBlock.id);
+          }
         }}
         role="button"
         tabIndex={0}

@@ -127,7 +127,7 @@ export default function ProjectProperties({
 
       {/* Cliente */}
       <PropertyRow label="Cliente" icon="👤" fieldKey="client"
-        value={<span>{currentClient?.name || 'Nenhum'}</span>}
+        value={<span>{currentClient?.name || currentClient?.nome_cliente || 'Nenhum'}</span>}
       >
         <select
           className="notion-prop-select"

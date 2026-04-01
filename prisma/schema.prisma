@@ -62,7 +62,7 @@ model Client {
   updatedAt       DateTime @updatedAt
 
   // Relacionamentos
-  projects Project[]
+  // projects Project[] - removido para migrar para o CrmCliente
 
   @@index([isActive])
   @@index([importanceLevel])
@@ -93,7 +93,7 @@ model Project {
   updatedAt      DateTime  @updatedAt
 
   // Relacionamentos
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  client        CrmCliente?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
   tasks         Task[]
   memories      Memory[]
   projectLink   ProjectLink?
@@ -493,6 +493,7 @@ model CrmCliente {
   notas_contexto  String?
   criado_em       DateTime @default(now())
 
+  projetos_legado Project[]
   projetos        AiProjeto[]
 
   @@map("clientes")

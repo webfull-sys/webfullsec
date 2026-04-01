@@ -79,14 +79,57 @@ export default function ProjectHeader({ project, onUpdate }) {
     setShowCoverPicker(false);
   }, [onUpdate]);
 
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.url) {
+        if (type === 'cover') {
+          onUpdate({ coverImage: `url('${data.url}')` });
+          setShowCoverPicker(false);
+        } else if (type === 'icon') {
+          onUpdate({ icon: data.url });
+          setShowIconPicker(false);
+        }
+      } else {
+        alert(`Erro no upload: ${data.error || 'Desconhecido'}`);
+      }
+    } catch (err) {
+      console.error('Erro no upload', err);
+      alert('Falha crítica no upload. Verifique console.');
+    } finally {
+      // reseta o input
+      e.target.value = '';
+    }
+  };
+
+  // Processar o coverImage de forma robusta para evitar avisos de hidratação/estilo do React
+  const coverValue = project.coverImage || COVER_GRADIENTS[0];
+  const coverStyle = {
+    // Usamos backgroundImage para TUDO (imagens e gradientes são background-image em CSS)
+    backgroundImage: coverValue,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  };
+
   return (
     <div className="notion-header">
       {/* Imagem de Capa */}
       <div
         className="notion-cover"
-        style={{
-          background: project.coverImage || COVER_GRADIENTS[0],
-        }}
+        style={coverStyle}
       >
         <div className="notion-cover-overlay">
           <button
@@ -113,11 +156,17 @@ export default function ProjectHeader({ project, onUpdate }) {
                 />
               ))}
             </div>
-            {project.coverImage && (
-              <button className="btn btn-ghost btn-sm" onClick={handleRemoveCover}>
-                Remover capa
-              </button>
-            )}
+            <div style={{ padding: '0 8px 8px 8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', textAlign: 'center' }}>
+                Upload Imagem
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, 'cover')} />
+              </label>
+              {project.coverImage && (
+                <button className="btn btn-ghost btn-danger btn-sm" onClick={handleRemoveCover}>
+                  Remover capa
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -129,7 +178,11 @@ export default function ProjectHeader({ project, onUpdate }) {
           onClick={() => setShowIconPicker(!showIconPicker)}
           aria-label="Alterar ícone"
         >
-          {project.icon || '📁'}
+          {project.icon && (project.icon.startsWith('/') || project.icon.startsWith('http')) ? (
+            <img src={project.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+          ) : (
+            project.icon || '📁'
+          )}
         </button>
 
         {/* Picker de ícone */}
@@ -146,6 +199,12 @@ export default function ProjectHeader({ project, onUpdate }) {
                   {icon}
                 </button>
               ))}
+            </div>
+            <div style={{ padding: '8px', borderTop: '1px solid var(--border)', marginTop: '4px' }}>
+              <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', width: '100%', textAlign: 'center' }}>
+                Upload Imagem
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, 'icon')} />
+              </label>
             </div>
           </div>
         )}

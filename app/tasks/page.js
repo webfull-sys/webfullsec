@@ -144,25 +144,40 @@ export default function TasksPage() {
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Nova Tarefa</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-          {tasks.map(task => (
-            <div key={task.id} className="task-item">
-              <button className={`task-check ${task.status === 'done' ? 'done' : ''}`} onClick={() => toggleTask(task)} aria-label="Toggle tarefa" />
-              <div className="task-info" onClick={() => openEdit(task)} style={{ cursor: 'pointer' }}>
-                <div className={`task-title ${task.status === 'done' ? 'done' : ''}`}>{task.title}</div>
-                <div className="task-meta">
-                  <span className="task-priority-dot" style={{ background: getPriorityColor(task.priority) }} />
-                  <span>{getPriorityLabel(task.priority)}</span>
-                  {task.estimatedTime && <span>⏱ {formatMinutes(task.estimatedTime)}</span>}
-                  {task.doDate && <span>📅 {formatDate(task.doDate)}</span>}
-                  {task.project && <span>📁 {task.project.title}</span>}
-                </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+          {Object.entries(
+            tasks.reduce((acc, task) => {
+              const projectTitle = task.project?.title || 'Avulsas (Sem Projeto)';
+              if (!acc[projectTitle]) acc[projectTitle] = [];
+              acc[projectTitle].push(task);
+              return acc;
+            }, {})
+          ).map(([projectTitle, projectTasks]) => (
+            <details key={projectTitle} className="project-group" open>
+              <summary style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 'var(--space-sm)', cursor: 'pointer', outline: 'none', userSelect: 'none' }}>
+                📁 {projectTitle} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', opacity: 0.7 }}>({projectTasks.length})</span>
+              </summary>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)', marginTop: '8px' }}>
+                {projectTasks.map(task => (
+                  <div key={task.id} className="task-item">
+                    <button className={`task-check ${task.status === 'done' ? 'done' : ''}`} onClick={() => toggleTask(task)} aria-label="Toggle tarefa" />
+                    <div className="task-info" onClick={() => openEdit(task)} style={{ cursor: 'pointer' }}>
+                      <div className={`task-title ${task.status === 'done' ? 'done' : ''}`}>{task.title}</div>
+                      <div className="task-meta">
+                        <span className="task-priority-dot" style={{ background: getPriorityColor(task.priority) }} />
+                        <span>{getPriorityLabel(task.priority)}</span>
+                        {task.estimatedTime && <span>⏱ {formatMinutes(task.estimatedTime)}</span>}
+                        {task.doDate && <span>📅 {formatDate(task.doDate)}</span>}
+                      </div>
+                    </div>
+                    <div className="task-actions">
+                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEdit(task)} title="Editar">✏️</button>
+                      <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteTask(task.id)} title="Remover">🗑️</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="task-actions">
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => openEdit(task)} title="Editar">✏️</button>
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => deleteTask(task.id)} title="Remover">🗑️</button>
-              </div>
-            </div>
+            </details>
           ))}
         </div>
       )}

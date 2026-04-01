@@ -9,30 +9,31 @@
  * ============================================
  */
 
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { apiResponse, apiError } from '@/lib/utils';
 
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const client = await prisma.client.findUnique({
+    const client = await prisma.crmCliente.findUnique({
       where: { id },
       include: {
-        projects: {
+        projetos: {
           select: {
-            id: true, title: true, status: true, category: true,
-            dueDate: true, priority: true, generalContext: true,
+            id: true, titulo_projeto: true, status_projeto: true, categoria: true,
+            due_date_cliente: true, prioridade: true, resumo_ia_contexto: true,
           },
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { atualizado_em: 'desc' },
         },
-        _count: { select: { projects: true } },
+        _count: { select: { projetos: true } },
       },
     });
 
-    if (!client) return apiError('Cliente não encontrado', 404);
+    if (!client) return apiError('Cliente CRM não encontrado', 404);
     return apiResponse(client);
   } catch (error) {
-    console.error('Erro ao buscar cliente:', error);
+    console.error('Erro ao buscar cliente CRM:', error);
     return apiError('Erro interno', 500);
   }
 }
@@ -42,59 +43,53 @@ export async function PATCH(request, { params }) {
     const { id } = await params;
     const body = await request.json();
 
-    // Validação de nome se fornecido
-    if (body.name !== undefined && !body.name?.trim()) {
+    if (body.nome_cliente !== undefined && !body.nome_cliente?.trim()) {
       return apiError('O nome não pode ser vazio', 400);
     }
 
-    // Campos permitidos para atualização
     const data = {};
     const allowedFields = [
-      'name', 'email', 'phone', 'company', 'website',
-      'cpfCnpj', 'address', 'timezone', 'importanceLevel',
-      'tags', 'notes', 'avatar', 'isActive',
+      'nome_cliente', 'email', 'telefone', 'status_cliente', 'nivel_prioridade', 'notas_contexto'
     ];
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        if (field === 'importanceLevel') {
+        if (field === 'nivel_prioridade') {
           data[field] = Math.min(5, Math.max(1, parseInt(body[field])));
-        } else if (field === 'tags') {
-          data[field] = typeof body[field] === 'string' ? body[field] : JSON.stringify(body[field]);
         } else {
           data[field] = body[field];
         }
       }
     }
 
-    const client = await prisma.client.update({
+    const client = await prisma.crmCliente.update({
       where: { id },
       data,
       include: {
-        _count: { select: { projects: true } },
+        _count: { select: { projetos: true } },
       },
     });
 
     return apiResponse(client);
   } catch (error) {
     if (error.code === 'P2025') {
-      return apiError('Cliente não encontrado', 404);
+      return apiError('Cliente CRM não encontrado', 404);
     }
-    console.error('Erro ao atualizar cliente:', error);
-    return apiError('Erro ao atualizar cliente', 500);
+    console.error('Erro ao atualizar cliente CRM:', error);
+    return apiError('Erro ao atualizar', 500);
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
-    await prisma.client.delete({ where: { id } });
-    return apiResponse({ message: 'Cliente removido com sucesso' });
+    await prisma.crmCliente.delete({ where: { id } });
+    return apiResponse({ message: 'Cliente CRM removido com sucesso' });
   } catch (error) {
     if (error.code === 'P2025') {
-      return apiError('Cliente não encontrado', 404);
+      return apiError('Cliente CRM não encontrado', 404);
     }
-    console.error('Erro ao deletar cliente:', error);
-    return apiError('Erro ao deletar cliente', 500);
+    console.error('Erro ao deletar cliente CRM:', error);
+    return apiError('Erro ao deletar', 500);
   }
 }

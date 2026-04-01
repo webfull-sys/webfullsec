@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
       where: { id },
       include: {
         client: {
-          select: { id: true, name: true, importanceLevel: true, phone: true, email: true },
+          select: { id: true, nome_cliente: true, nivel_prioridade: true, telefone: true, email: true },
         },
         tasks: {
           orderBy: [{ priority: 'desc' }, { position: 'asc' }],
@@ -64,6 +64,12 @@ export async function GET(request, { params }) {
 
     return apiResponse({
       ...project,
+      client: project.client ? { 
+        ...project.client, 
+        name: project.client.nome_cliente,
+        importanceLevel: project.client.nivel_prioridade,
+        phone: project.client.telefone
+      } : null,
       // Parse de tags JSON para array
       tags: project.tags ? JSON.parse(project.tags) : [],
       metrics: {
@@ -131,7 +137,7 @@ export async function PATCH(request, { params }) {
       where: { id },
       data,
       include: {
-        client: { select: { id: true, name: true } },
+        client: { select: { id: true, nome_cliente: true } },
         projectAgents: {
           include: {
             agent: { select: { id: true, name: true } },
@@ -153,7 +159,12 @@ export async function PATCH(request, { params }) {
       });
     }
 
-    return apiResponse(project);
+    const formattedProject = {
+      ...project,
+      client: project.client ? { ...project.client, name: project.client.nome_cliente } : null
+    };
+
+    return apiResponse(formattedProject);
   } catch (error) {
     if (error.code === 'P2025') {
       return apiError('Projeto não encontrado', 404);
