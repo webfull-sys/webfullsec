@@ -10,6 +10,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 
 /**
  * BlockRenderer — Renderiza um bloco individual com edição inline
@@ -207,7 +208,14 @@ export default function BlockRenderer({
       return (
         <div className="block-image">
           {props.url ? (
-            <img src={props.url} alt={block.content || 'Imagem'} className="block-image-img" />
+            <Image
+              src={props.url}
+              alt={block.content || 'Imagem'}
+              className="block-image-img"
+              width={1200}
+              height={800}
+              unoptimized
+            />
           ) : (
             <div className="block-image-placeholder">
               <span>🖼️</span>

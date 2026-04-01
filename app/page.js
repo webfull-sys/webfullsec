@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import AppShell from '@/components/layout/AppShell';
 import PomodoroTimer from '@/components/pomodoro/PomodoroTimer';
 import { getGreeting, formatDate, formatMinutes, getStatusLabel, getPriorityColor } from '@/lib/utils';
@@ -44,7 +45,16 @@ export default function DashboardPage() {
 
         if (statsRes.ok) {
           const data = await statsRes.json();
-          setStats(data);
+          setStats({
+            totalTasks: data.totalTasks ?? data.todayTasks ?? 0,
+            completedToday: data.completedToday ?? 0,
+            inProgress: data.inProgress ?? data.inProgressTasks ?? 0,
+            overdue: data.overdue ?? data.overdueTasks ?? 0,
+            totalProjects: data.totalProjects ?? 0,
+            activeClients: data.activeClients ?? 0,
+            todayHours: data.todayHours ?? 0,
+            inboxUnread: data.inboxUnread ?? 0,
+          });
         }
         if (tasksRes.ok) {
           const data = await tasksRes.json();
@@ -62,12 +72,14 @@ export default function DashboardPage() {
 
     fetchDashboard();
 
-    // Verificar se deve mostrar "Start your Day"
-    const today = new Date().toDateString();
-    const lastStart = localStorage.getItem('webfullsec_last_start');
-    if (lastStart !== today) {
-      setShowStartDay(true);
-    }
+    const showStartTimer = setTimeout(() => {
+      const today = new Date().toDateString();
+      if (localStorage.getItem('webfullsec_last_start') !== today) {
+        setShowStartDay(true);
+      }
+    }, 0);
+
+    return () => clearTimeout(showStartTimer);
   }, []);
 
   // Marcar tarefa como concluída
@@ -236,7 +248,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">🎯 Tarefas de Hoje</h2>
-              <a href="/tasks" className="btn btn-ghost btn-sm">Ver todas →</a>
+              <Link href="/tasks" className="btn btn-ghost btn-sm">Ver todas →</Link>
             </div>
 
             {loading ? (
@@ -251,9 +263,9 @@ export default function DashboardPage() {
                 <p className="empty-state-text">
                   Adicione tarefas ou use o auto-agendamento para preencher seu dia.
                 </p>
-                <a href="/tasks" className="btn btn-primary" style={{ marginTop: 'var(--space-md)' }}>
+                <Link href="/tasks" className="btn btn-primary" style={{ marginTop: 'var(--space-md)' }}>
                   + Nova Tarefa
-                </a>
+                </Link>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
@@ -301,7 +313,7 @@ export default function DashboardPage() {
           <div className="card" style={{ marginTop: 'var(--space-lg)' }}>
             <div className="card-header">
               <h2 className="card-title">📁 Projetos Ativos</h2>
-              <a href="/projects" className="btn btn-ghost btn-sm">Ver todos →</a>
+              <Link href="/projects" className="btn btn-ghost btn-sm">Ver todos →</Link>
             </div>
 
             {recentProjects.length === 0 ? (
@@ -317,7 +329,7 @@ export default function DashboardPage() {
                   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
                   return (
-                    <a
+                    <Link
                       key={project.id}
                       href={`/projects/${project.id}`}
                       style={{
@@ -366,7 +378,7 @@ export default function DashboardPage() {
                       }}>
                         {progress}%
                       </span>
-                    </a>
+                    </Link>
                   );
                 })}
               </div>

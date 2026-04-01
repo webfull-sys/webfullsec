@@ -41,15 +41,15 @@ export async function GET(request) {
         select: { id: true, title: true, category: true, status: true },
         take: 5,
       }),
-      prisma.client.findMany({
+      prisma.crmCliente.findMany({
         where: {
           OR: [
-            { name: { contains: query } },
+            { nome_cliente: { contains: query } },
             { email: { contains: query } },
-            { company: { contains: query } },
+            { telefone: { contains: query } },
           ],
         },
-        select: { id: true, name: true, company: true },
+        select: { id: true, nome_cliente: true, email: true },
         take: 5,
       }),
       prisma.inboxItem.findMany({
@@ -82,8 +82,8 @@ export async function GET(request) {
       })),
       ...clients.map(c => ({
         type: 'client',
-        title: c.name,
-        description: c.company || 'Cliente',
+        title: c.nome_cliente,
+        description: c.email || 'Cliente',
         href: `/clients?id=${c.id}`,
         icon: '👤',
       })),

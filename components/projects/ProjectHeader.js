@@ -10,6 +10,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 
 // Emojis populares para seleção de ícone
 const POPULAR_ICONS = [
@@ -179,7 +180,14 @@ export default function ProjectHeader({ project, onUpdate }) {
           aria-label="Alterar ícone"
         >
           {project.icon && (project.icon.startsWith('/') || project.icon.startsWith('http')) ? (
-            <img src={project.icon} alt="Icon" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+            <Image
+              src={project.icon}
+              alt="Icon"
+              width={64}
+              height={64}
+              unoptimized
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+            />
           ) : (
             project.icon || '📁'
           )}

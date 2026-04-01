@@ -9,7 +9,7 @@
  * ============================================
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { formatDate, formatMinutes, getPriorityColor, getPriorityLabel, getStatusLabel } from '@/lib/utils';
 import { TASK_STATUSES, PRIORITY_LEVELS } from '@/lib/constants';
@@ -20,6 +20,7 @@ export default function TasksPage() {
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [editingTask, setEditingTask] = useState(null);
+  const [openGroups, setOpenGroups] = useState({});
 
   // Estado do formulário
   const [form, setForm] = useState({
@@ -27,12 +28,7 @@ export default function TasksPage() {
     estimatedTime: '', doDate: '', dueDate: '', projectId: '',
   });
 
-  // Carregar tarefas
-  useEffect(() => {
-    fetchTasks();
-  }, [filter]);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
     if (filter !== 'all') params.set('status', filter);
@@ -44,7 +40,13 @@ export default function TasksPage() {
       }
     } catch { /* silencioso */ }
     setLoading(false);
-  };
+  }, [filter]);
+
+  // Carregar tarefas
+  useEffect(() => {
+    const timer = setTimeout(fetchTasks, 0);
+    return () => clearTimeout(timer);
+  }, [fetchTasks]);
 
   // Criar/Editar tarefa
   const handleSubmit = async (e) => {
@@ -109,6 +111,15 @@ export default function TasksPage() {
     setShowModal(true);
   };
 
+  const groupedTasks = Object.entries(
+    tasks.reduce((acc, task) => {
+      const projectTitle = task.project?.title || 'Avulsas (Sem Projeto)';
+      if (!acc[projectTitle]) acc[projectTitle] = [];
+      acc[projectTitle].push(task);
+      return acc;
+    }, {})
+  );
+
   return (
     <AppShell pageTitle="Tarefas">
       {/* Header da página */}
@@ -145,15 +156,19 @@ export default function TasksPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-          {Object.entries(
-            tasks.reduce((acc, task) => {
-              const projectTitle = task.project?.title || 'Avulsas (Sem Projeto)';
-              if (!acc[projectTitle]) acc[projectTitle] = [];
-              acc[projectTitle].push(task);
-              return acc;
-            }, {})
-          ).map(([projectTitle, projectTasks]) => (
-            <details key={projectTitle} className="project-group" open>
+          {groupedTasks.map(([projectTitle, projectTasks]) => (
+            <details
+              key={projectTitle}
+              className="project-group"
+              open={!!openGroups[projectTitle]}
+              onToggle={(e) => {
+                const isOpen = e.currentTarget.open;
+                setOpenGroups(prev => ({
+                  ...prev,
+                  [projectTitle]: isOpen,
+                }));
+              }}
+            >
               <summary style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 'var(--space-sm)', cursor: 'pointer', outline: 'none', userSelect: 'none' }}>
                 📁 {projectTitle} <span style={{ fontSize: '0.8rem', fontWeight: 'normal', opacity: 0.7 }}>({projectTasks.length})</span>
               </summary>

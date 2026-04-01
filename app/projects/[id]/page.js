@@ -10,6 +10,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
 import ProjectHeader from '@/components/projects/ProjectHeader';
@@ -188,7 +189,7 @@ export default function ProjectPage() {
       <div className="notion-page">
         {/* Breadcrumb */}
         <nav className="notion-breadcrumb" aria-label="Navegação">
-          <a href="/projects" className="notion-breadcrumb-link">📁 Projetos</a>
+          <Link href="/projects" className="notion-breadcrumb-link">📁 Projetos</Link>
           <span className="notion-breadcrumb-sep">/</span>
           <span className="notion-breadcrumb-current">
             {project.icon || '📁'} {project.title}

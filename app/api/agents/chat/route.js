@@ -51,7 +51,13 @@ export async function POST(request) {
       source: 'webfullsec_chat_agent'
     };
 
-    const webhookSecret = process.env.WEBHOOK_API_KEY || 'dev-webhook-key';
+    const webhookSecret = process.env.WEBHOOK_API_KEY;
+    if (!webhookSecret) {
+      return NextResponse.json(
+        { error: 'WEBHOOK_API_KEY não configurada no servidor' },
+        { status: 500 }
+      );
+    }
 
     const response = await fetch(targetWebhook, {
       method: 'POST',

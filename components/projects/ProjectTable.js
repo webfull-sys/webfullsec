@@ -60,10 +60,7 @@ export default function ProjectTable({ projects }) {
     });
   }, [projects, sortKey, sortDir]);
 
-  /**
-   * Ícone de ordenação
-   */
-  const SortIcon = ({ column }) => {
+  const renderSortIcon = (column) => {
     if (sortKey !== column) return <span className="sort-icon">⇅</span>;
     return <span className="sort-icon active">{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
@@ -74,24 +71,24 @@ export default function ProjectTable({ projects }) {
         <thead>
           <tr>
             <th onClick={() => handleSort('title')} className="sortable" style={{ minWidth: 240 }}>
-              Projeto <SortIcon column="title" />
+              Projeto {renderSortIcon('title')}
             </th>
             <th onClick={() => handleSort('status')} className="sortable">
-              Status <SortIcon column="status" />
+              Status {renderSortIcon('status')}
             </th>
             <th onClick={() => handleSort('category')} className="sortable">
-              Categoria <SortIcon column="category" />
+              Categoria {renderSortIcon('category')}
             </th>
             <th onClick={() => handleSort('priority')} className="sortable">
-              Prioridade <SortIcon column="priority" />
+              Prioridade {renderSortIcon('priority')}
             </th>
             <th>Cliente</th>
             <th onClick={() => handleSort('dueDate')} className="sortable">
-              Prazo <SortIcon column="dueDate" />
+              Prazo {renderSortIcon('dueDate')}
             </th>
             <th>Progresso</th>
             <th onClick={() => handleSort('updatedAt')} className="sortable">
-              Atualizado <SortIcon column="updatedAt" />
+              Atualizado {renderSortIcon('updatedAt')}
             </th>
           </tr>
         </thead>

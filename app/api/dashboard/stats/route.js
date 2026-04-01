@@ -73,10 +73,8 @@ export async function GET() {
       prisma.project.count({
         where: { status: 'waiting_client' },
       }),
-      // Clientes ativos
-      prisma.client.count({
-        where: { isActive: true },
-      }),
+      // Clientes ativos (CRM atual)
+      prisma.crmCliente.count(),
       // Inbox não lidos
       prisma.inboxItem.count({
         where: { isRead: false, isArchived: false },
@@ -118,6 +116,11 @@ export async function GET() {
       burnoutScore: burnout.score,
       burnoutLevel: burnout.level,
       burnoutRecommendation: burnout.recommendation,
+      // Compatibilidade retro com o dashboard legado
+      totalTasks: todayTasks,
+      inProgress: inProgressTasks,
+      overdue: overdueTasks,
+      todayHours: (todayEstimated._sum.estimatedTime || 0) / 60,
     });
   } catch (error) {
     console.error('Erro ao buscar stats:', error);

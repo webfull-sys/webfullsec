@@ -3,7 +3,7 @@
  * WebfullSec — Página de Calendário (TimeBlocking)
  * Autoria: Webfull (https://webfull.com.br) | v1.0.0
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { formatDate } from '@/lib/utils';
 
@@ -24,9 +24,7 @@ export default function CalendarPage() {
     return days;
   }, [selectedDate]);
 
-  useEffect(() => { fetchBlocks(); }, [selectedDate]);
-
-  const fetchBlocks = async () => {
+  const fetchBlocks = useCallback(async () => {
     setLoading(true);
     const end = new Date(weekDays[6]); end.setHours(23, 59, 59);
     try {
@@ -34,7 +32,12 @@ export default function CalendarPage() {
       if (res.ok) { const data = await res.json(); setBlocks(data.blocks || []); }
     } catch { /* silencioso */ }
     setLoading(false);
-  };
+  }, [weekDays]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchBlocks, 0);
+    return () => clearTimeout(timer);
+  }, [fetchBlocks]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
