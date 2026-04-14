@@ -17,7 +17,6 @@ import ProjectTable from '@/components/projects/ProjectTable';
 import TimelineView from '@/components/projects/TimelineView';
 import { PROJECT_STATUSES, PROJECT_CATEGORIES } from '@/lib/constants';
 
-// Tipos de visualização disponíveis
 const VIEW_MODES = [
   { value: 'kanban', label: 'Kanban', icon: '◫' },
   { value: 'table', label: 'Tabela', icon: '☰' },
@@ -38,10 +37,6 @@ export default function ProjectsPage() {
   const [scanning, setScanning] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', category: 'site', priority: 2, icon: '📁' });
 
-  // ==========================================
-  // Fetch de dados
-  // ==========================================
-
   const fetchProjects = useCallback(async () => {
     try {
       const res = await fetch('/api/projects');
@@ -60,10 +55,6 @@ export default function ProjectsPage() {
     fetchProjects();
   }, [fetchProjects]);
 
-  // ==========================================
-  // Filtros
-  // ==========================================
-
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
       if (filterStatus !== 'all' && p.status !== filterStatus) return false;
@@ -78,17 +69,10 @@ export default function ProjectsPage() {
     });
   }, [projects, filterStatus, filterCategory, searchQuery]);
 
-  // ==========================================
-  // Ações
-  // ==========================================
-
-  /** Atualiza o status de um projeto (usado pelo Kanban drag) */
   const handleUpdateStatus = useCallback(async (projectId, newStatus) => {
-    // Atualização otimista
     setProjects((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
     );
-
     try {
       await fetch(`/api/projects/${projectId}`, {
         method: 'PATCH',
@@ -97,26 +81,22 @@ export default function ProjectsPage() {
       });
     } catch (err) {
       console.error('Erro ao atualizar status:', err);
-      fetchProjects(); // Reverter em caso de erro
+      fetchProjects();
     }
   }, [fetchProjects]);
 
-  /** Cria um novo projeto */
   const handleCreateProject = useCallback(async () => {
     if (!newProject.title.trim()) return;
-
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newProject),
       });
-
       if (res.ok) {
         const created = await res.json();
         setShowNewModal(false);
         setNewProject({ title: '', category: 'site', priority: 2, icon: '📁' });
-        // Navegar para a página do novo projeto
         router.push(`/projects/${created.id}`);
       }
     } catch (err) {
@@ -124,35 +104,26 @@ export default function ProjectsPage() {
     }
   }, [newProject, router]);
 
-  /** Escaneia um projeto de um diretório */
   const handleScanProject = useCallback(async () => {
     if (!scanPath.trim()) return;
-
     setScanning(true);
     try {
       const res = await fetch('/api/custom/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: scanPath.trim(),
-          options: { createAgent: true }
-        }),
+        body: JSON.stringify({ path: scanPath.trim(), options: { createAgent: true } }),
       });
-
       const data = await res.json();
-
       if (data.success) {
         setShowScanModal(false);
         setScanPath('');
-        // Atualizar lista de projetos
         fetchProjects();
-        // Navegar para o novo projeto
         router.push(`/projects/${data.projectId}`);
       } else {
         alert('Erro ao escanear: ' + data.error);
       }
     } catch (err) {
-      console.error('Erro ao escanear projeto:', err);
+      console.error('Erro ao escanear:', err);
     } finally {
       setScanning(false);
     }
@@ -161,10 +132,8 @@ export default function ProjectsPage() {
   return (
     <AppShell pageTitle="Projetos">
       <div className="projects-page">
-        {/* Cabeçalho com visualizações e filtros */}
         <div className="projects-header">
           <div className="projects-header-left">
-            {/* Alternador de visualizações */}
             <div className="view-switcher" role="tablist" aria-label="Modo de visualização">
               {VIEW_MODES.map((mode) => (
                 <button
@@ -180,8 +149,6 @@ export default function ProjectsPage() {
                 </button>
               ))}
             </div>
-
-            {/* Filtros */}
             <div className="projects-filters">
               <select
                 className="projects-filter-select"
@@ -194,7 +161,6 @@ export default function ProjectsPage() {
                   <option key={s.value} value={s.value}>{s.icon} {s.label}</option>
                 ))}
               </select>
-
               <select
                 className="projects-filter-select"
                 value={filterCategory}
@@ -208,9 +174,7 @@ export default function ProjectsPage() {
               </select>
             </div>
           </div>
-
           <div className="projects-header-right">
-            {/* Busca */}
             <div className="projects-search">
               <span className="projects-search-icon">🔍</span>
               <input
@@ -222,53 +186,29 @@ export default function ProjectsPage() {
                 aria-label="Buscar projetos"
               />
             </div>
-
-            {/* Botão Novo Projeto */}
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowScanModal(true)}
-              title="Escanear projeto de um diretório"
-            >
+            <button className="btn btn-secondary" onClick={() => setShowScanModal(true)} title="Escanear projeto">
               📂 Escanear
             </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowNewModal(true)}
-            >
+            <button className="btn btn-primary" onClick={() => setShowNewModal(true)}>
               + Nova Página
             </button>
           </div>
         </div>
-
-        {/* Contagem */}
         <div className="projects-count">
           <span className="text-muted">
             {filteredProjects.length} projeto{filteredProjects.length !== 1 ? 's' : ''}
             {filterStatus !== 'all' || filterCategory !== 'all' || searchQuery ? ' (filtrado)' : ''}
           </span>
         </div>
-
-        {/* Conteúdo baseado na visualização */}
         {loading ? (
           <div className="empty-state"><div className="spinner" /></div>
         ) : (
           <>
-            {viewMode === 'kanban' && (
-              <KanbanBoard
-                projects={filteredProjects}
-                onUpdateStatus={handleUpdateStatus}
-              />
-            )}
-            {viewMode === 'table' && (
-              <ProjectTable projects={filteredProjects} />
-            )}
-            {viewMode === 'timeline' && (
-              <TimelineView projects={filteredProjects} />
-            )}
+            {viewMode === 'kanban' && <KanbanBoard projects={filteredProjects} onUpdateStatus={handleUpdateStatus} />}
+            {viewMode === 'table' && <ProjectTable projects={filteredProjects} />}
+            {viewMode === 'timeline' && <TimelineView projects={filteredProjects} />}
           </>
         )}
-
-        {/* Modal de Novo Projeto */}
         {showNewModal && (
           <div className="modal-backdrop" onClick={() => setShowNewModal(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -289,7 +229,6 @@ export default function ProjectsPage() {
                     onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
                   />
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Categoria</label>
                   <select
@@ -302,7 +241,6 @@ export default function ProjectsPage() {
                     ))}
                   </select>
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Ícone</label>
                   <div className="notion-icon-picker-grid" style={{ gridTemplateColumns: 'repeat(10, 1fr)' }}>
@@ -322,19 +260,13 @@ export default function ProjectsPage() {
               </div>
               <div className="modal-footer">
                 <button className="btn btn-ghost" onClick={() => setShowNewModal(false)}>Cancelar</button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleCreateProject}
-                  disabled={!newProject.title.trim()}
-                >
+                <button className="btn btn-primary" onClick={handleCreateProject} disabled={!newProject.title.trim()}>
                   Criar Projeto
-</button>
-                </div>
+                </button>
               </div>
             </div>
-          )}
-
-        {/* Modal de Escaneamento de Projeto */}
+          </div>
+        )}
         {showScanModal && (
           <div className="modal-backdrop" onClick={() => setShowScanModal(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -356,17 +288,14 @@ export default function ProjectsPage() {
                   />
                   <p className="form-help">Cole o caminho completo da pasta do projeto</p>
                 </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleScanProject}
-                  disabled={!scanPath.trim() || scanning}
-                >
+                <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
                   {scanning ? 'Escaneando...' : 'Escanear'}
                 </button>
               </div>
             </div>
           </div>
         )}
-      </AppShell>
-    );
-  }
+      </div>
+    </AppShell>
+  );
+}
