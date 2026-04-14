@@ -276,24 +276,25 @@ export default function ProjectsPage() {
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Caminho da pasta do projeto</label>
+                  <label className="form-label">Selecione a pasta do projeto no seu PC</label>
                   <input
-                    type="text"
+                    type="file"
                     className="form-input"
-                    placeholder="D:\VibeCoding\ProjSitesAI\plataforma-ead"
-                    value={scanPath}
-                    onChange={(e) => setScanPath(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleScanProject()}
+                    webkitdirectory=""
+                    directory=""
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        const file = files[0];
+                        const fullPath = file.webkitRelativePath || file.name;
+                        const folderPath = fullPath.split('/')[0];
+                        setScanPath(folderPath);
+                      }
+                    }}
+                    style={{ height: '100px' }}
                   />
-                  <p className="form-help">Cole o caminho completo da pasta</p>
+                  <p className="form-help">Clique acima e escolha a pasta do projeto</p>
                 </div>
-                <button 
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setScanPath('D:\\VibeCoding\\ProjSitesAI\\plataforma-ead')}
-                >
-                  📁 Plataforma EAD
-                </button>
               </div>
               <div className="modal-footer">
                 <button className="btn btn-ghost" onClick={() => setShowScanModal(false)}>Cancelar</button>
