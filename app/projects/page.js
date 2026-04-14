@@ -286,11 +286,23 @@ export default function ProjectsPage() {
                     autoFocus
                     onKeyDown={(e) => e.key === 'Enter' && handleScanProject()}
                   />
-                  <p className="form-help">Cole o caminho completo da pasta do projeto</p>
+                  <p className="form-help">Cole o caminho ou clique em "Procurar"</p>
                 </div>
-                <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
-                  {scanning ? 'Escaneando...' : 'Escanear'}
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const path = prompt('Digite o caminho da pasta:');
+                      if (path) setScanPath(path);
+                    }}
+                  >
+                    🔍 Procurar
+                  </button>
+                  <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
+                    {scanning ? 'Escaneando...' : 'Escanear'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
