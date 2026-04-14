@@ -158,10 +158,6 @@ export default function ProjectsPage() {
     }
   }, [scanPath, router, fetchProjects]);
 
-  // ==========================================
-  // Render
-  // ==========================================
-
   return (
     <AppShell pageTitle="Projetos">
       <div className="projects-page">
