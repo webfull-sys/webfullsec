@@ -1,0 +1,114 @@
+{
+  "name": "LocalWP to WebfullSec Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "A cada 30 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "C:\\Users\\LuizFerreira\\Local Sites",
+        "options": {}
+      },
+      "id": "readFolder",
+      "name": "Lê pasta LocalWP",
+      "type": "n8n-nodes-base.readBinaryFolder",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst basePath = 'C:\\\\Users\\\\LuizFerreira\\\\Local Sites';\nconst sites = [];\n\ntry {\n  const dirs = fs.readdirSync(basePath);\n  \n  for (const dir of dirs) {\n    const sitePath = path.join(basePath, dir);\n    const stat = fs.statSync(sitePath);\n    \n    if (stat.isDirectory()) {\n      const publicPath = path.join(sitePath, 'app', 'public');\n      const wpConfig = path.join(publicPath, 'wp-config.php');\n      \n      if (fs.existsSync(wpConfig)) {\n        // Extrai versão do WP\n        let wpVersion = '?';\n        try {\n          const versionFile = fs.readFileSync(path.join(publicPath, 'wp-includes', 'version.php'), 'utf-8');\n          const match = versionFile.match(/\\$wp_version\\s*=\\s*['\"]([^'\"]+)['\"]/);\n          if (match) wpVersion = match[1];\n        } catch {}\n        \n        // Extrai tema\n        let theme = '?';\n        try {\n          const themePath = path.join(publicPath, 'wp-content', 'themes');\n          if (fs.existsSync(themePath)) {\n            const themes = fs.readdirSync(themePath).filter(f => {\n              try { return fs.statSync(path.join(themePath, f)).isDirectory(); } catch { return false; }\n            });\n            theme = themes[0] || '?';\n          }\n        } catch {}\n        \n        sites.push({\n          name: dir,\n          path: sitePath,\n          domain: dir + '.local',\n          wpVersion,\n          themeName: theme,\n          isValid: true\n        });\n      }\n    }\n  }\n} catch (e) {\n  console.error('Erro:', e.message);\n}\n\nreturn [{ json: { sites } }];\n"
+      },
+      "id": "processSites",
+      "name": "Processa sites",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/n8n/sync",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "bulkCreate"
+            },
+            {
+              "name": "projects",
+              "value": "={{ $json.sites }}"
+            },
+            {
+              "name": "apiKey",
+              "value": "n8n_localwp_2024_secreto"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToServer",
+      "name": "Envia para WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = $input.first().json;\nconst count = results.results?.length || 0;\n\nreturn [\n  {\n    json: {\n      message: count + ' projetos sincronizados',\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
+      },
+      "id": "log",
+      "name": "Log resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "A cada 30 minutos": {
+      "main": [[
+        {
+          "node": "Processa sites",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Processa sites": {
+      "main": [[
+        {
+          "node": "Envia para WebfullSec",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Envia para WebfullSec": {
+      "main": [[
+        {
+          "node": "Log resultado",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "localwp-sync",
+  "tags": ["localwp", "sync", "webfullsec"]
+}
