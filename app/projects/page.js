@@ -276,36 +276,44 @@ export default function ProjectsPage() {
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Caminho do projeto no seu PC</label>
+                  <label className="form-label">Selecione a pasta do projeto</label>
                   <input
-                    type="text"
+                    type="file"
                     className="form-input"
-                    placeholder="C:\Users\LuizFerreira\MeuProjeto"
-                    value={scanPath}
-                    onChange={(e) => setScanPath(e.target.value)}
-                    autoFocus
-                    onKeyDown={(e) => e.key === 'Enter' && handleScanProject()}
+                    webkitdirectory=""
+                    directory=""
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const path = file.webkitRelativePath || file.name;
+                        const fullPath = file.webkitRelativePath ? '' : file.name;
+                        setScanPath(file.name);
+                      }
+                    }}
                   />
-                  <p className="form-help">Cole o caminho ou clique em "Procurar"</p>
+                  <p className="form-help">Clique acima e selecione a pasta do projeto</p>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => {
-                      const path = prompt('Digite o caminho da pasta:');
-                      if (path) setScanPath(path);
-                    }}
+                    onClick={() => setScanPath('D:\\VibeCoding\\ProjSitesAI\\plataforma-ead')}
                   >
-                    🔍 Procurar
+                    📁 Plataforma EAD
                   </button>
                   <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
                     {scanning ? 'Escaneando...' : 'Escanear'}
                   </button>
                 </div>
+                    🔍 Procurar
+                  </button>
+                  <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
+                    {scanning ? 'Escaneando...' : 'Escanear'}
+                  </button>
+</div>
               </div>
             </div>
-          </div>
+          )}
         )}
       </div>
     </AppShell>
