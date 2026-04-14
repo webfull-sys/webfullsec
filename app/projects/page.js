@@ -33,6 +33,9 @@ export default function ProjectsPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanPath, setScanPath] = useState('');
+  const [scanning, setScanning] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', category: 'site', priority: 2, icon: '📁' });
 
   // ==========================================
@@ -121,6 +124,40 @@ export default function ProjectsPage() {
     }
   }, [newProject, router]);
 
+  /** Escaneia um projeto de um diretório */
+  const handleScanProject = useCallback(async () => {
+    if (!scanPath.trim()) return;
+
+    setScanning(true);
+    try {
+      const res = await fetch('/api/custom/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: scanPath.trim(),
+          options: { createAgent: true }
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setShowScanModal(false);
+        setScanPath('');
+        // Atualizar lista de projetos
+        fetchProjects();
+        // Navegar para o novo projeto
+        router.push(`/projects/${data.projectId}`);
+      } else {
+        alert('Erro ao escanear: ' + data.error);
+      }
+    } catch (err) {
+      console.error('Erro ao escanear projeto:', err);
+    } finally {
+      setScanning(false);
+    }
+  }, [scanPath, router, fetchProjects]);
+
   // ==========================================
   // Render
   // ==========================================
@@ -191,6 +228,13 @@ export default function ProjectsPage() {
             </div>
 
             {/* Botão Novo Projeto */}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowScanModal(true)}
+              title="Escanear projeto de um diretório"
+            >
+              📂 Escanear
+            </button>
             <button
               className="btn btn-primary"
               onClick={() => setShowNewModal(true)}
@@ -288,12 +332,45 @@ export default function ProjectsPage() {
                   disabled={!newProject.title.trim()}
                 >
                   Criar Projeto
+</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Modal de Escaneamento de Projeto */}
+        {showScanModal && (
+          <div className="modal-backdrop" onClick={() => setShowScanModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2 className="modal-title">📂 Escanear Projeto</h2>
+                <button className="modal-close" onClick={() => setShowScanModal(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Caminho do projeto no seu PC</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="C:\Users\LuizFerreira\MeuProjeto"
+                    value={scanPath}
+                    onChange={(e) => setScanPath(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleScanProject()}
+                  />
+                  <p className="form-help">Cole o caminho completo da pasta do projeto</p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleScanProject}
+                  disabled={!scanPath.trim() || scanning}
+                >
+                  {scanning ? 'Escaneando...' : 'Escanear'}
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
-    </AppShell>
-  );
-}
+      </AppShell>
+    );
+  }
