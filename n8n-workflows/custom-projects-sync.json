@@ -1,0 +1,132 @@
+{
+  "name": "Custom Projects Sync - Pasta Personalizada",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "A cada 15 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\n// Pasta base - ALTERE AQUI PARA SUA PASTA\nconst basePath = 'D:\\\\VibeCoding\\\\ProjSitesAI';\n\nif (!fs.existsSync(basePath)) {\n  throw new Error('Pasta não encontrada: ' + basePath);\n}\n\nconst dirs = fs.readdirSync(basePath);\nconst projects = [];\n\nfor (const dir of dirs) {\n  const projectPath = path.join(basePath, dir);\n  const stat = fs.statSync(projectPath);\n  \n  if (stat.isDirectory()) {\n    // Detecta tipo de projeto\n    let type = 'unknown';\n    if (fs.existsSync(path.join(projectPath, 'package.json'))) type = 'nodejs';\n    if (fs.existsSync(path.join(projectPath, 'composer.json'))) type = 'php';\n    if (fs.existsSync(path.join(projectPath, 'wp-config.php'))) type = 'wordpress';\n    if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) type = 'python';\n    if (fs.existsSync(path.join(projectPath, 'go.mod'))) type = 'go';\n    if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) type = 'rust';\n    \n    projects.push({\n      name: dir,\n      path: projectPath,\n      type: type,\n      isValid: type !== 'unknown'\n    });\n  }\n}\n\nreturn [{ json: { projects: projects.filter(p => p.isValid) } }];\n"
+      },
+      "id": "scan",
+      "name": "Escaneia pasta de projetos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.projects.length }}",
+              "operation": "larger",
+              "value2": "0"
+            }
+          ]
+        }
+      },
+      "id": "if",
+      "name": "Se há projetos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/custom/scan",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "path",
+              "value": "={{ $json.projects[0].path }}"
+            },
+            {
+              "name": "options",
+              "value": {
+                "name": "={{ $json.projects[0].name }}",
+                "createAgent": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "createProject",
+      "name": "Cria projeto no WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = $input.first().json;\nif (data.success) {\n  return [{ json: { synced: data.projectData.name } }];\n}\nreturn [];\n"
+      },
+      "id": "success",
+      "name": "Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    }
+  ],
+  "connections": {
+    "A cada 15 minutos": {
+      "main": [[
+        {
+          "node": "Escaneia pasta de projetos",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Escaneia pasta de projetos": {
+      "main": [[
+        {
+          "node": "Se há projetos",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Se há projetos": {
+      "main": [
+        [
+          {
+            "node": "Cria projeto no WebfullSec",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Cria projeto no WebfullSec": {
+      "main": [[
+        {
+          "node": "Sucesso",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "custom-projects-sync",
+  "tags": ["custom", "projects", "sync", "webfullsec"]
+}
