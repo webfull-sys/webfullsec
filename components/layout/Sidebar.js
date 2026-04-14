@@ -196,15 +196,6 @@ export default function Sidebar({ isOpen = false, onClose, inboxCount = 0 }) {
           </span>
         </div>
       </aside>
-
-      {/* Estilo do overlay para mobile */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .sidebar-overlay {
-            display: block !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
