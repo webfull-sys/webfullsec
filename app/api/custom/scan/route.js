@@ -11,7 +11,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Caminho é obrigatório' }, { status: 400 });
     }
 
-    const projectData = await scanCustomPath(customPath, options);
+    console.log('Scanning path:', customPath);
+    
+    let projectData;
+    try {
+      projectData = await scanCustomPath(customPath, options);
+    } catch (scanError) {
+      console.error('Scan error:', scanError);
+      return NextResponse.json({ error: scanError.message }, { status: 400 });
+    }
+
+    console.log('Project data:', projectData);
 
     const project = await prisma.project.create({
       data: {
