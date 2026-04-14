@@ -32,9 +32,6 @@ export default function ProjectsPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
-  const [showScanModal, setShowScanModal] = useState(false);
-  const [scanPath, setScanPath] = useState('');
-  const [scanning, setScanning] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', category: 'site', priority: 2, icon: '📁' });
 
   const fetchProjects = useCallback(async () => {
@@ -104,30 +101,7 @@ export default function ProjectsPage() {
     }
   }, [newProject, router]);
 
-  const handleScanProject = useCallback(async () => {
-    if (!scanPath.trim()) return;
-    setScanning(true);
-    try {
-      const res = await fetch('/api/custom/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: scanPath.trim(), options: { createAgent: true } }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowScanModal(false);
-        setScanPath('');
-        fetchProjects();
-        router.push(`/projects/${data.projectId}`);
-      } else {
-        alert('Erro ao escanear: ' + data.error);
-      }
-    } catch (err) {
-      console.error('Erro ao escanear:', err);
-    } finally {
-      setScanning(false);
-    }
-  }, [scanPath, router, fetchProjects]);
+
 
   return (
     <AppShell pageTitle="Projetos">
@@ -186,9 +160,7 @@ export default function ProjectsPage() {
                 aria-label="Buscar projetos"
               />
             </div>
-            <button className="btn btn-secondary" onClick={() => setShowScanModal(true)} title="Escanear projeto">
-              📂 Escanear
-            </button>
+
             <button className="btn btn-primary" onClick={() => setShowNewModal(true)}>
               + Nova Página
             </button>
@@ -262,48 +234,6 @@ export default function ProjectsPage() {
                 <button className="btn btn-ghost" onClick={() => setShowNewModal(false)}>Cancelar</button>
                 <button className="btn btn-primary" onClick={handleCreateProject} disabled={!newProject.title.trim()}>
                   Criar Projeto
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {showScanModal && (
-          <div className="modal-backdrop" onClick={() => setShowScanModal(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2 className="modal-title">📂 Escanear Projeto</h2>
-                <button className="modal-close" onClick={() => setShowScanModal(false)}>×</button>
-              </div>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Selecione a pasta do projeto no seu PC</label>
-                  <input
-                    type="file"
-                    className="form-input"
-                    webkitdirectory=""
-                    directory=""
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const file = files[0];
-                        const fullPath = file.webkitRelativePath || file.name;
-                        const folderPath = fullPath.split('/')[0];
-                        setScanPath(folderPath);
-                      }
-                    }}
-                    style={{ height: '100px' }}
-                  />
-                  <p className="form-help">Clique acima e escolha a pasta do projeto</p>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setShowScanModal(false)}>Cancelar</button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={handleScanProject} 
-                  disabled={!scanPath.trim() || scanning}
-                >
-                  {scanning ? 'Escaneando...' : 'Escanear'}
                 </button>
               </div>
             </div>
