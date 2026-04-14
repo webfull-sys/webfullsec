@@ -1,0 +1,51 @@
+{
+  "name": "Multi-Folder Projects Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}
+      },
+      "id": "schedule",
+      "name": "A cada 15 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\n// Lista de pastas para escanear - ADICIONE MAIS PASTAS AQUI\nconst folders = [\n  'C:\\\\Users\\\\LuizFerreira\\\\Desktop\\\\ProjSitesAI',\n  'C:\\\\Users\\\\LuizFerreira\\\\Documents\\\\Projects',\n  'C:\\\\Users\\\\LuizFerreira\\\\GitHub',\n  'D:\\\\VibeCoding\\\\ProjSitesAI',\n  'D:\\\\Projects'\n];\n\nconst allProjects = [];\n\nfor (const basePath of folders) {\n  if (!fs.existsSync(basePath)) continue;\n  \n  try {\n    const dirs = fs.readdirSync(basePath, { withFileTypes: true });\n    \n    for (const dir of dirs) {\n      if (!dir.isDirectory()) continue;\n      const projectPath = path.join(basePath, dir.name);\n      \n      let type = 'unknown';\n      if (fs.existsSync(path.join(projectPath, 'package.json'))) type = 'nodejs';\n      else if (fs.existsSync(path.join(projectPath, 'composer.json'))) type = 'php';\n      else if (fs.existsSync(path.join(projectPath, 'wp-config.php'))) type = 'wordpress';\n      else if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) type = 'python';\n      else if (fs.existsSync(path.join(projectPath, 'go.mod'))) type = 'go';\n      else if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) type = 'rust';\n      \n      if (type !== 'unknown') {\n        allProjects.push({\n          name: dir.name,\n          path: projectPath,\n          type: type,\n          baseFolder: basePath\n        });\n      }\n    }\n  } catch (e) {}\n}\n\nreturn [{ json: { projects: allProjects } }];\n"
+      },
+      "id": "scan",
+      "name": "Escaneia múltiplas pastas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/custom/scan",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "path", "value": "={{ $json.projects[0].path }}"},
+            {"name": "options", "value": {"name": "={{ $json.projects[0].name }}", "createAgent": true}}
+          ]
+        },
+        "options": {}
+      },
+      "id": "createProject",
+      "name": "Cria projeto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "A cada 15 minutos": {"main": [[{"node": "Escaneia múltiplas pastas", "type": "main", "index": 0}]]},
+    "Escaneia múltiplas pastas": {"main": [[{"node": "Cria projeto", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {},
+  "id": "multi-folder-sync",
+  "tags": ["projects", "sync", "multi-folder"]
+}
