@@ -1,0 +1,92 @@
+{
+  "name": "Manual Project Scanner - Any Path",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {}
+      },
+      "id": "manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base MANUAL_TRIGGER",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Recebe o caminho do projeto\nconst projectPath = $input.first().json.path;\n\nif (!projectPath) {\n  throw new Error('Caminho é obrigatório!');\n}\n\nconst fs = require('fs');\nconst path = require('path');\n\n// Verifica se o caminho existe\nif (!fs.existsSync(projectPath)) {\n  throw new Error('Pasta não encontrada: ' + projectPath);\n}\n\nconst stat = fs.statSync(projectPath);\nif (!stat.isDirectory()) {\n  throw new Error('O caminho deve ser uma pasta!');\n}\n\nconst projectName = path.basename(projectPath);\n\n// Detecta tipo de projeto\nlet type = 'unknown';\nif (fs.existsSync(path.join(projectPath, 'package.json'))) type = 'nodejs';\nelse if (fs.existsSync(path.join(projectPath, 'composer.json'))) type = 'php';\nelse if (fs.existsSync(path.join(projectPath, 'wp-config.php'))) type = 'wordpress';\nelse if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) type = 'python';\nelse if (fs.existsSync(path.join(projectPath, 'go.mod'))) type = 'go';\nelse if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) type = 'rust';\nelse if (fs.existsSync(path.join(projectPath, 'index.html'))) type = 'static';\nelse if (fs.existsSync(path.join(projectPath, 'main.py'))) type = 'python';\n\n// Detecta tecnologias\nconst techStack = [];\ntry {\n  if (fs.existsSync(path.join(projectPath, 'package.json'))) {\n    const pkg = JSON.parse(fs.readFileSync(path.join(projectPath, 'package.json'), 'utf-8'));\n    techStack.push('Node.js');\n    if (pkg.dependencies?.next || pkg.devDependencies?.next) techStack.push('Next.js');\n    if (pkg.dependencies?.react) techStack.push('React');\n    if (pkg.dependencies?.express) techStack.push('Express');\n    if (pkg.dependencies?.vue) techStack.push('Vue');\n  }\n  if (fs.existsSync(path.join(projectPath, 'composer.json'))) {\n    techStack.push('PHP');\n    const comp = JSON.parse(fs.readFileSync(path.join(projectPath, 'composer.json'), 'utf-8'));\n    if (comp.require?.laravel) techStack.push('Laravel');\n  }\n} catch {}\n\nreturn [{\n  json: {\n    name: projectName,\n    path: projectPath,\n    type: type,\n    techStack: techStack,\n    valid: type !== 'unknown'\n  }\n}];\n"
+      },
+      "id": "validate",
+      "name": "Valida caminho",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {"value1": "={{ $json.valid}}", "operation": "true"}
+          ]
+        }
+      },
+      "id": "ifValid",
+      "name": "Se válido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/custom/scan",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {"name": "path", "value": "={{ $json.path }}"},
+            {"name": "options", "value": {"name": "={{ $json.name }}", "createAgent": true}}
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToServer",
+      "name": "Envia para WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = $input.first().json;\n\nif (result.success) {\n  return [{\n    json: {\n      message: '✅ Projeto **' + result.projectData.name + '** criado com sucesso!\\n\\nTipo: ' + result.projectData.type + '\\nTecnologias: ' + (result.projectData.techStack?.join(', ') || 'Nenhuma')\\n\\nAcesse em: /projects/' + result.projectId\n    }\n  }];\n} else {\n  return [{\n    json: {\n      message: '❌ Erro: ' + result.error\n    }\n  }];\n}\n"
+      },
+      "id": "success",
+      "name": "Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    message: '❌Projeto não válido ou pasta vazia. Certifique-se de que a pasta contém um projeto com package.json, composer.json, wp-config.php, etc.'\n  }\n}];\n"
+      },
+      "id": "invalid",
+      "name": "Inválido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 450]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {"main": [[{"node": "Valida caminho", "type": "main", "index": 0}]]},
+    "Valida caminho": {"main": [[{"node": "Se válido", "type": "main", "index": 0}]]},
+    "Se válido": {
+      "main": [
+        [{"node": "Envia para WebfullSec", "type": "main", "index": 0}],
+        [{"node": "Inválido", "type": "main", "index": 0}]
+      ]
+    },
+    "Envia para WebfullSec": {"main": [[{"node": "Sucesso", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {},
+  "id": "manual-scanner",
+  "tags": ["manual", "scanner", "custom-project"]
+}
