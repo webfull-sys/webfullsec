@@ -2,7 +2,7 @@
  * ============================================
  * WebfullSec — Layout Root (App Shell)
  * Autoria: Webfull (https://webfull.com.br)
- * Versão: 2.1.0
+ * Versão: 2.2.0
  * ============================================
  * Layout raiz que encapsula Sidebar + Header + Content.
  * Inclui SEO, fontes, PWA manifest e meta tags globais.
@@ -31,7 +31,7 @@ export const metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#060b18',
+  themeColor: '#1D2D21',
 };
 
 export default function RootLayout({ children }) {

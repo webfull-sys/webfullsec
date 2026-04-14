@@ -81,6 +81,18 @@ function NavIcon({ name }) {
         <circle cx="18" cy="16" r="3"></circle>
       </svg>
     ),
+    files: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+        <circle cx="14" cy="14" r="3" />
+        <path d="M14 11v1.5" />
+        <path d="M14 16.5V17" />
+        <path d="M11.5 12.5l1.3.75" />
+        <path d="M15.2 14.75l1.3.75" />
+        <path d="M11.5 15.5l1.3-.75" />
+        <path d="M15.2 13.25l1.3-.75" />
+      </svg>
+    ),
   };
 
   return (
