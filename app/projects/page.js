@@ -276,44 +276,37 @@ export default function ProjectsPage() {
               </div>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Selecione a pasta do projeto</label>
+                  <label className="form-label">Caminho da pasta do projeto</label>
                   <input
-                    type="file"
+                    type="text"
                     className="form-input"
-                    webkitdirectory=""
-                    directory=""
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const path = file.webkitRelativePath || file.name;
-                        const fullPath = file.webkitRelativePath ? '' : file.name;
-                        setScanPath(file.name);
-                      }
-                    }}
+                    placeholder="D:\VibeCoding\ProjSitesAI\plataforma-ead"
+                    value={scanPath}
+                    onChange={(e) => setScanPath(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleScanProject()}
                   />
-                  <p className="form-help">Clique acima e selecione a pasta do projeto</p>
+                  <p className="form-help">Cole o caminho completo da pasta</p>
                 </div>
-                <div className="flex gap-2">
-                  <button 
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setScanPath('D:\\VibeCoding\\ProjSitesAI\\plataforma-ead')}
-                  >
-                    📁 Plataforma EAD
-                  </button>
-                  <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
-                    {scanning ? 'Escaneando...' : 'Escanear'}
-                  </button>
-                </div>
-                    🔍 Procurar
-                  </button>
-                  <button className="btn btn-primary" onClick={handleScanProject} disabled={!scanPath.trim() || scanning}>
-                    {scanning ? 'Escaneando...' : 'Escanear'}
-                  </button>
-</div>
+                <button 
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setScanPath('D:\\VibeCoding\\ProjSitesAI\\plataforma-ead')}
+                >
+                  📁 Plataforma EAD
+                </button>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setShowScanModal(false)}>Cancelar</button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleScanProject} 
+                  disabled={!scanPath.trim() || scanning}
+                >
+                  {scanning ? 'Escaneando...' : 'Escanear'}
+                </button>
               </div>
             </div>
-          )}
+          </div>
         )}
       </div>
     </AppShell>
