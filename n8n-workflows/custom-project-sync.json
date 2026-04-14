@@ -1,0 +1,150 @@
+{
+  "name": "Custom Project to WebfullSec Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "A cada 15 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "C:\\Users\\LuizFerreira\\Projects",
+        "options": {}
+      },
+      "id": "readFolder",
+      "name": "Lê pasta de projetos",
+      "type": "n8n-nodes-base.readBinaryFolder",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst basePath = 'C:\\\\Users\\\\LuizFerreira\\\\Projects';\nconst projects = [];\n\n// Detecta tipo de projeto\nconst detectType = (dir) => {\n  if (fs.existsSync(path.join(dir, 'wp-config.php'))) return 'wordpress';\n  if (fs.existsSync(path.join(dir, 'next.config.js'))) return 'nextjs';\n  if (fs.existsSync(path.join(dir, 'package.json'))) return 'nodejs';\n  if (fs.existsSync(path.join(dir, 'composer.json'))) return 'php';\n  if (fs.existsSync(path.join(dir, 'requirements.txt'))) return 'python';\n  if (fs.existsSync(path.join(dir, 'go.mod'))) return 'go';\n  if (fs.existsSync(path.join(dir, 'Cargo.toml'))) return 'rust';\n  return 'unknown';\n};\n\ntry {\n  const dirs = fs.readdirSync(basePath);\n  \n  for (const dir of dirs) {\n    const projectPath = path.join(basePath, dir);\n    const stat = fs.statSync(projectPath);\n    \n    if (stat.isDirectory()) {\n      const type = detectType(projectPath);\n      const pkgPath = path.join(projectPath, 'package.json');\n      let version = null;\n      \n      if (fs.existsSync(pkgPath)) {\n        try {\n          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));\n          version = pkg.version;\n        } catch {}\n      }\n      \n      projects.push({\n        name: dir,\n        path: projectPath,\n        type,\n        version,\n        isValid: type !== 'unknown'\n      });\n    }\n  }\n} catch (e) {\n  console.error('Erro:', e.message);\n}\n\nreturn [{ json: { projects: projects.filter(p => p.isValid) } }];\n"
+      },
+      "id": "processProjects",
+      "name": "Processa projetos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/custom/scan",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "path",
+              "value": "={{ $json.projects[0].path }}"
+            },
+            {
+              "name": "options",
+              "value": {
+                "name": "={{ $json.projects[0].name }}",
+                "createAgent": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToServer",
+      "name": "Envia para WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.success }}",
+              "operation": "true"
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "if",
+      "name": "Se sucesso",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  {\n    json: {\n      message: 'Projeto criado com sucesso!',\n      projectId: $input.first().json.projectId\n    }\n  }\n];\n"
+      },
+      "id": "success",
+      "name": "Sucesso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  {\n    json: {\n      message: 'Erro: ' + $input.first().json.error\n    }\n  }\n];\n"
+      },
+      "id": "error",
+      "name": "Erro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 450]
+    }
+  ],
+  "connections": {
+    "A cada 15 minutos": {
+      "main": [[
+        {
+          "node": "Processa projetos",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Processa projetos": {
+      "main": [[
+        {
+          "node": "Envia para WebfullSec",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Envia para WebfullSec": {
+      "main": [
+        [
+          {
+            "node": "Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "custom-project-sync",
+  "tags": ["custom", "projects", "sync", "webfullsec"]
+}

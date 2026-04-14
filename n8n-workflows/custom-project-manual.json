@@ -1,0 +1,105 @@
+{
+  "name": "Custom Project to WebfullSec - Manual",
+  "nodes": [
+    {
+      "parameters": {
+        "properties": {
+          "path": {
+            "mode": "json",
+            "value": "={{ $json.path }}"
+          }
+        },
+        "additionalFields": {
+          "name": "projectName",
+          "value": ""
+        }
+      },
+      "id": "manual",
+      "name": "Manual Input",
+      "type": "n8n-nodes-base MANUAL_TRIGGER",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst projectPath = $input.first().json.path;\n\nif (!projectPath) {\n  throw new Error('Caminho é obrigatório');\n}\n\nif (!fs.existsSync(projectPath)) {\n  throw new Error('Diretório não encontrado: ' + projectPath);\n}\n\nconst stat = fs.statSync(projectPath);\nif (!stat.isDirectory()) {\n  throw new Error('O caminho deve ser um diretório');\n}\n\nconst projectName = $input.first().json.projectName || path.basename(projectPath);\n\n// Detecta tipo\nconst detectType = (dir) => {\n  if (fs.existsSync(path.join(dir, 'wp-config.php'))) return 'wordpress';\n  if (fs.existsSync(path.join(dir, 'next.config.js'))) return 'nextjs';\n  if (fs.existsSync(path.join(dir, 'package.json'))) return 'nodejs';\n  if (fs.existsSync(path.join(dir, 'composer.json'))) return 'php';\n  if (fs.existsSync(path.join(dir, 'requirements.txt'))) return 'python';\n  if (fs.existsSync(path.join(dir, 'go.mod'))) return 'go';\n  if (fs.existsSync(path.join(dir, 'Cargo.toml'))) return 'rust';\n  return 'unknown';\n};\n\n// Detecta stack\nconst detectStack = (dir) => {\n  const stack = [];\n  if (fs.existsSync(path.join(dir, 'package.json'))) {\n    try {\n      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));\n      stack.push('Node.js');\n      if (pkg.dependencies?.next || pkg.devDependencies?.next) stack.push('Next.js');\n      if (pkg.dependencies?.react) stack.push('React');\n      if (pkg.dependencies?.express) stack.push('Express');\n    } catch {}\n  }\n  return stack;\n};\n\nconst type = detectType(projectPath);\n\nreturn [{\n  json: {\n    path: projectPath,\n    name: projectName,\n    type: type,\n    techStack: detectStack(projectPath)\n  }\n}];\n"
+      },
+      "id": "scan",
+      "name": "Escaneia projeto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/custom/scan",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "path",
+              "value": "={{ $json.path }}"
+            },
+            {
+              "name": "options",
+              "value": {
+                "name": "={{ $json.name }}",
+                "createAgent": true,
+                "priority": 2
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToServer",
+      "name": "Envia para WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = $input.first().json;\n\nif (result.success) {\n  return [{\n    json: {\n      message: '✅ Projeto **' + result.projectData.name + '** criado com sucesso!\\n\\nTipo: ' + result.projectData.type + '\\nTecnologias: ' + (result.projectData.techStack?.join(', ') || 'Nenhuma')\\n\\nProjeto ID: ' + result.projectId\n    }\n  }];\n} else {\n  return [{\n    json: {\n      message: '❌ Erro: ' + result.error\n    }\n  }];\n}\n"
+      },
+      "id": "result",
+      "name": "Resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Manual Input": {
+      "main": [[
+        {
+          "node": "Escaneia projeto",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Escaneia projeto": {
+      "main": [[
+        {
+          "node": "Envia para WebfullSec",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Envia para WebfullSec": {
+      "main": [[
+        {
+          "node": "Resultado",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "custom-project-manual",
+  "tags": ["custom", "project", "manual", "webfullsec"]
+}
