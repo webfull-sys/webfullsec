@@ -1,0 +1,209 @@
+{
+  "name": "LocalWP Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Agenda a cada 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3000/api/localwp/sites?action=list",
+        "options": {}
+      },
+      "id": "httpRequest",
+      "name": "Busca sites LocalWP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.sites.length }}",
+              "operation": "larger",
+              "value2": "0"
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "if",
+      "name": "Se há sites",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  {\n    json: {\n      sites: $input.first().json.sites,\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
+      },
+      "id": "process",
+      "name": "Processa sites",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "const sites = $input.first().json.sites;\nconst webhookUrl = 'http://host.docker.internal:3000/api/webhooks/n8n/action';\n\n// Para cada site, verifica alterações\nconst results = [];\n\nfor (const site of sites) {\n  try {\n    const response = await $axios.get(`${webhookUrl}?action=check_changes&site=${site.name}`);\n    results.push(response.data);\n  } catch (e) {\n    results.push({ site: site.name, error: e.message });\n  }\n}\n\nreturn [{ json: { results, count: results.length } }];\n"
+      },
+      "id": "checkChanges",
+      "name": "Verifica alterações",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "webhookUri": "={{
+  $json.slackWebhook ||
+  'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+}}",
+        "text": "🔄 *LocalWP Monitor*\n\nSites verificados: {{
+  $input.all()[0].json.sites.length
+}}\nAlterações detectadas: {{
+  $input.all()[1].json.count
+}}\nHorário: {{
+  $input.all()[0].json.timestamp
+}}",
+        "blocks": []
+      },
+      "id": "notify",
+      "name": "Notifica Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Cria tarefas para alterações importantes\nconst changes = $input.all()[1].json.results;\nconst tasks = [];\n\nfor (const change of changes) {\n  if (change.newFiles && change.newFiles.length > 5) {\n    tasks.push({\n      title: `Novo arquivo em ${change.site} - Revisar`,\n      description: `${change.newFiles.length} novos arquivos detectados`,\n      priority: 2\n    });\n  }\n}\n\nif (tasks.length > 0) {\n  return [{ json: { tasks } }];\n}\nreturn [{ json: { tasks: [] } }];\n"
+      },
+      "id": "createTasks",
+      "name": "Cria tarefas automaticamente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 450]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3000/api/tasks",
+        "method": "POST",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.description }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority }}"
+            },
+            {
+              "name": "status",
+              "value": "todo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "httpRequest2",
+      "name": "Cria tarefa no WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1250, 450]
+    }
+  ],
+  "connections": {
+    "Agenda a cada 5 min": {
+      "main": [[
+        {
+          "node": "Busca sites LocalWP",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Busca sites LocalWP": {
+      "main": [[
+        {
+          "node": "Se há sites",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Se há sites": {
+      "main": [
+        [
+          {
+            "node": "Processa sites",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Processa sites": {
+      "main": [[
+        {
+          "node": "Verifica alterações",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Verifica alterações": {
+      "main": [
+        [
+          {
+            "node": "Notifica Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cria tarefas automaticamente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cria tarefas automaticamente": {
+      "main": [[
+        {
+          "node": "Cria tarefa no WebfullSec",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "11",
+  "tags": ["localwp", "monitor", "automation"]
+}
