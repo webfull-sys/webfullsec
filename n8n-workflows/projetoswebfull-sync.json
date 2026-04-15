@@ -1,0 +1,122 @@
+{
+  "name": "ProjetosWebfull to WebfullSec Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "A cada 30 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst basePath = 'D:\\\\ProjetosWebfull';\nconst projects = [];\n\nif (!fs.existsSync(basePath)) {\n  return [{ json: { projects: [], error: 'Pasta não encontrada' } }];\n}\n\nconst dirs = fs.readdirSync(basePath, { withFileTypes: true });\n\nfor (const dir of dirs) {\n  if (!dir.isDirectory()) continue;\n  const projectPath = path.join(basePath, dir.name);\n  \n  let type = 'unknown';\n  let techStack = [];\n  let wpVersion = null;\n  let themeName = null;\n  let plugins = [];\n  let gitRepo = null;\n  \n  // Detecta tipo de projeto\n  if (fs.existsSync(path.join(projectPath, 'package.json'))) {\n    type = 'nodejs';\n    try {\n      const pkg = JSON.parse(fs.readFileSync(path.join(projectPath, 'package.json'), 'utf-8'));\n      if (pkg.dependencies?.next) type = 'nextjs';\n      if (pkg.dependencies?.react) techStack.push('React');\n      if (pkg.dependencies?.express) techStack.push('Express');\n      if (pkg.dependencies?.vue) techStack.push('Vue');\n    } catch {}\n  } else if (fs.existsSync(path.join(projectPath, 'composer.json'))) {\n    type = 'php';\n    try {\n      const composer = JSON.parse(fs.readFileSync(path.join(projectPath, 'composer.json'), 'utf-8'));\n      if (composer.require?.laravel) type = 'laravel';\n    } catch {}\n  } else if (fs.existsSync(path.join(projectPath, 'wp-config.php'))) {\n    type = 'wordpress';\n    // Extrai versão WP\n    try {\n      const versionPath = path.join(projectPath, 'wp-includes', 'version.php');\n      if (fs.existsSync(versionPath)) {\n        const content = fs.readFileSync(versionPath, 'utf-8');\n        const match = content.match(/\\$wp_version\\s*=\\s*['\"]([^'\"]+)['\"]/);\n        if (match) wpVersion = match[1];\n      }\n    } catch {}\n    // Extrai tema\n    try {\n      const themePath = path.join(projectPath, 'wp-content', 'themes');\n      if (fs.existsSync(themePath)) {\n        const themes = fs.readdirSync(themePath).filter(f => {\n          try { return fs.statSync(path.join(themePath, f)).isDirectory(); } catch { return false; }\n        });\n        const activeTheme = themes.find(t => fs.existsSync(path.join(themePath, t, 'style.css')));\n        if (activeTheme) {\n          const styleCss = fs.readFileSync(path.join(themePath, activeTheme, 'style.css'), 'utf-8');\n          const match = styleCss.match(/Theme Name:\\s*([^\\n]+)/);\n          themeName = match ? match[1].trim() : activeTheme;\n        }\n      }\n    } catch {}\n    // Plugins\n    try {\n      const pluginsPath = path.join(projectPath, 'wp-content', 'plugins');\n      if (fs.existsSync(pluginsPath)) {\n        plugins = fs.readdirSync(pluginsPath).filter(f => {\n          try { return fs.statSync(path.join(pluginsPath, f)).isDirectory(); } catch { return false; }\n        });\n      }\n    } catch {}\n  } else if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) {\n    type = 'python';\n  } else if (fs.existsSync(path.join(projectPath, 'go.mod'))) {\n    type = 'go';\n  } else if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) {\n    type = 'rust';\n  }\n  \n  // Git remote\n  try {\n    const gitConfig = path.join(projectPath, '.git', 'config');\n    if (fs.existsSync(gitConfig)) {\n      const config = fs.readFileSync(gitConfig, 'utf-8');\n      const match = config.match(/url\\s*=\\s*(.+)/);\n      if (match) gitRepo = match[1].trim();\n    }\n  } catch {}\n  \n  if (type !== 'unknown') {\n    projects.push({\n      name: dir.name,\n      path: projectPath,\n      type: type,\n      techStack: techStack,\n      wpVersion: wpVersion,\n      themeName: themeName,\n      plugins: plugins,\n      gitRepo: gitRepo,\n      isValid: true\n    });\n  }\n}\n\nreturn [{ json: { projects } }];\n"
+      },
+      "id": "scan",
+      "name": "Escaneia pasta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [{"value1": "={{ $json.projects.length }}", "operation": "larger", "value2": "0"}]
+        }
+      },
+      "id": "if",
+      "name": "Se há projetos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://webfullsec.webfullvps.com.br/api/projetoswebfull/sync",
+        "method": "POST",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "bulkCreate"
+            },
+            {
+              "name": "projects",
+              "value": "={{ $json.projects }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToServer",
+      "name": "Envia para WebfullSec",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "const result = $input.first().json;\nconst count = result.results?.filter(r => r.success).length || 0;\n\nreturn [\n  {\n    json: {\n      message: count + ' projetos sincronizados',\n      timestamp: new Date().toISOString(),\n      results: result.results\n    }\n  }\n];\n"
+      },
+      "id": "log",
+      "name": "Log resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    }
+  ],
+  "connections": {
+    "A cada 30 minutos": {
+      "main": [[
+        {
+          "node": "Escaneia pasta",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Escaneia pasta": {
+      "main": [[
+        {
+          "node": "Se há projetos",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Se há projetos": {
+      "main": [[
+        {
+          "node": "Envia para WebfullSec",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    },
+    "Envia para WebfullSec": {
+      "main": [[
+        {
+          "node": "Log resultado",
+          "type": "main",
+          "index": 0
+        }
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "projetoswebfull-sync",
+  "tags": ["projetoswebfull", "sync", "webfullsec"]
+}

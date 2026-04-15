@@ -57,6 +57,10 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-gemini-2.0-flash}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LOCALWP_BASE_PATH: ${LOCALWP_BASE_PATH:-C:\\Users\\LuizFerreira\\Local Sites}
+      PROJETOSWEBFULL_BASE_PATH: ${PROJETOSWEBFULL_BASE_PATH:-D:\\ProjetosWebfull}
+      CUSTOM_PROJECTS_PATH: ${CUSTOM_PROJECTS_PATH:-D:\\ProjetosWebfull}
+      N8N_API_KEY: ${N8N_API_KEY:-n8n_localwp_2024_secreto}
     ports:
       - "3000:3000"
     networks:
