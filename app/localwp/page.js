@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Folder, Server, Database, Layers, Clock, RefreshCw, ExternalLink, Search } from 'lucide-react';
 
 export default function LocalWpPage() {
@@ -10,11 +10,7 @@ export default function LocalWpPage() {
   const [changes, setChanges] = useState([]);
   const [activeTab, setActiveTab] = useState('sites');
 
-  useEffect(() => {
-    loadSites();
-  }, []);
-
-  async function loadSites() {
+  const loadSites = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/localwp/sites?action=list');
@@ -24,9 +20,14 @@ export default function LocalWpPage() {
       console.error('Erro ao carregar sites:', error);
     }
     setLoading(false);
-  }
+  }, []);
 
-  async function checkChanges(siteName) {
+  useEffect(() => {
+    loadSites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const checkChanges = useCallback(async (siteName) => {
     setLoading(true);
     try {
       const res = await fetch(`/api/localwp/sites?action=details&name=${siteName}`);
@@ -36,7 +37,7 @@ export default function LocalWpPage() {
       console.error('Erro ao carregar detalhes:', error);
     }
     setLoading(false);
-  }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
