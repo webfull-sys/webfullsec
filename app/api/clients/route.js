@@ -4,9 +4,23 @@ import prisma from '@/lib/prisma';
 export async function GET() {
   try {
     const clients = await prisma.crmCliente.findMany({
+      include: {
+        _count: {
+          select: { projetos_legado: true, projetos: true }
+        }
+      },
       orderBy: { criado_em: 'desc' }
     });
-    return NextResponse.json(clients);
+    
+    // Normalizar a contagem para o frontend (projetos_legado + projetos se necessário)
+    const normalized = clients.map(c => ({
+      ...c,
+      _count: {
+        projetos: (c._count?.projetos_legado || 0) + (c._count?.projetos || 0)
+      }
+    }));
+
+    return NextResponse.json(normalized);
   } catch (error) {
     console.error('Erro GET clients:', error);
     return NextResponse.json({ error: 'Erro ao buscar clientes CRM' }, { status: 500 });

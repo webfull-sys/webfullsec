@@ -56,12 +56,12 @@ export default function ProjectPage() {
       const res = await fetch('/api/clients?active=true');
       if (res.ok) {
         const data = await res.json();
-        const clientArray = Array.isArray(data) ? data : (data.clients || data.data?.clients || []);
+        const clientArray = Array.isArray(data) ? data : (data.clients || data.data?.clients || data.data || []);
         // Transformar para usar os mesmos nomes de propriedade para o componente original
         const mappedClients = clientArray.map(c => ({
           ...c,
           id: c.id,
-          name: c.nome_cliente || c.name,
+          name: c.nome_cliente || c.name || 'Sem Nome',
         }));
         setClients(mappedClients);
       }
