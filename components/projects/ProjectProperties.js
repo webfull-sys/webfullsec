@@ -130,7 +130,7 @@ export default function ProjectProperties({
       >
         <select
           className="notion-prop-select"
-          value={project.clientId || ''}
+          value={project?.clientId || ''}
           onChange={(e) => { 
             const val = e.target.value;
             onUpdate({ clientId: val === '' ? null : val }); 
@@ -140,8 +140,8 @@ export default function ProjectProperties({
           autoFocus
         >
           <option value="">Nenhum</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          {clients && Array.isArray(clients) && clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.name || c.nome_cliente}</option>
           ))}
         </select>
       </PropertyRow>
@@ -153,7 +153,7 @@ export default function ProjectProperties({
         <input
           type="date"
           className="notion-prop-input"
-          value={project.startDate ? (isNaN(new Date(project.startDate).getTime()) ? '' : new Date(project.startDate).toISOString().split('T')[0]) : ''}
+          value={project?.startDate ? (isNaN(new Date(project.startDate).getTime()) ? '' : new Date(project.startDate).toISOString().split('T')[0]) : ''}
           onChange={(e) => { 
             const val = e.target.value;
             onUpdate({ startDate: val ? val : null }); 
@@ -171,7 +171,7 @@ export default function ProjectProperties({
         <input
           type="date"
           className="notion-prop-input"
-          value={project.dueDate ? (isNaN(new Date(project.dueDate).getTime()) ? '' : new Date(project.dueDate).toISOString().split('T')[0]) : ''}
+          value={project?.dueDate ? (isNaN(new Date(project.dueDate).getTime()) ? '' : new Date(project.dueDate).toISOString().split('T')[0]) : ''}
           onChange={(e) => { 
             const val = e.target.value;
             onUpdate({ dueDate: val ? val : null }); 

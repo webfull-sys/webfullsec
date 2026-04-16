@@ -8,7 +8,7 @@ import { useState } from 'react';
  */
 export default function ProjectTimeline({ project, onUpdate }) {
   const [isEditingContext, setIsEditingContext] = useState(false);
-  const [localContext, setLocalContext] = useState(project.generalContext || '');
+  const [localContext, setLocalContext] = useState(project?.generalContext || '');
 
   const handleSaveContext = () => {
     onUpdate({ generalContext: localContext });
@@ -92,12 +92,12 @@ export default function ProjectTimeline({ project, onUpdate }) {
                 </div>
                 <div style={{ background: 'var(--background)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>{mem.type.toUpperCase()}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{mem?.type?.toUpperCase()}</strong>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {new Date(mem.createdAt).toLocaleString('pt-BR')}
+                      {mem?.createdAt ? new Date(mem.createdAt).toLocaleString('pt-BR') : '—'}
                     </span>
                   </div>
-                  <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.95rem' }}>{mem.content}</p>
+                  <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.95rem' }}>{mem?.content}</p>
                 </div>
               </div>
             ))}

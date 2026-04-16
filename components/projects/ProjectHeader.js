@@ -116,7 +116,7 @@ export default function ProjectHeader({ project, onUpdate }) {
   };
 
   // Processar o coverImage de forma robusta para evitar avisos de hidratação/estilo do React
-  const coverValue = project.coverImage || COVER_GRADIENTS[0];
+  const coverValue = project?.coverImage || COVER_GRADIENTS[0];
   const coverStyle = {
     // Usamos backgroundImage para TUDO (imagens e gradientes são background-image em CSS)
     backgroundImage: coverValue,
@@ -179,7 +179,7 @@ export default function ProjectHeader({ project, onUpdate }) {
           onClick={() => setShowIconPicker(!showIconPicker)}
           aria-label="Alterar ícone"
         >
-          {project.icon && (project.icon.startsWith('/') || project.icon.startsWith('http')) ? (
+          {project?.icon && (project.icon.startsWith('/') || project.icon.startsWith('http')) ? (
             <Image
               src={project.icon}
               alt="Icon"
@@ -189,7 +189,7 @@ export default function ProjectHeader({ project, onUpdate }) {
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
             />
           ) : (
-            project.icon || '📁'
+            project?.icon || '📁'
           )}
         </button>
 
@@ -231,7 +231,7 @@ export default function ProjectHeader({ project, onUpdate }) {
         role="heading"
         aria-level={1}
       >
-        {project.title}
+        {project?.title || 'Sem Título'}
       </h1>
     </div>
   );
