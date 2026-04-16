@@ -108,7 +108,7 @@ export default function ProjectsPage() {
   }, [fetchProjects]);
 
   // =============================================
-  // Aba PC — Scan da pasta
+  // Aba PC — Scan da pasta via agente local (localhost:3099)
   // =============================================
   const handleScanFolder = useCallback(async () => {
     if (!folderPath.trim()) return;
@@ -116,7 +116,8 @@ export default function ProjectsPage() {
     setScanResult(null);
     setScanError('');
     try {
-      const res = await fetch('/api/projects/scan-folder', {
+      // Chama o agente local que roda no PC do usuário
+      const res = await fetch('http://localhost:3099/scan-folder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderPath: folderPath.trim() }),
@@ -139,7 +140,11 @@ export default function ProjectsPage() {
         tags: [d.type, 'importado', ...(d.techStack || [])],
       });
     } catch (err) {
-      setScanError(`Erro de conexão: ${err.message}`);
+      // Erro de conexão = agente não está rodando
+      setScanError(
+        'Agente local não encontrado! Para importar pastas do seu PC, o agente precisa estar rodando.\n\n' +
+        '▶ Abra um terminal e execute:\ncd D:\\ProjetosWebfull\\WebfullSec\nnode scripts/watch-and-sync.js'
+      );
     } finally {
       setScanning(false);
     }
@@ -355,8 +360,14 @@ export default function ProjectsPage() {
 
                     {/* Erro de scan */}
                     {scanError && (
-                      <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '0.75rem 1rem', color: '#f87171', fontSize: '0.85rem', marginBottom: '1rem' }}>
-                        ❌ {scanError}
+                      <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '0.85rem 1rem', color: '#f87171', fontSize: '0.85rem', marginBottom: '1rem', lineHeight: 1.7 }}>
+                        {scanError.split('\n').map((line, i) =>
+                          line.startsWith('cd ') || line.startsWith('node ') ? (
+                            <code key={i} style={{ display: 'block', background: 'rgba(0,0,0,0.3)', padding: '3px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.82rem', marginTop: '4px' }}>{line}</code>
+                          ) : (
+                            <span key={i} style={{ display: 'block' }}>{line}</span>
+                          )
+                        )}
                       </div>
                     )}
 
