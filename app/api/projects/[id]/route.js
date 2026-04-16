@@ -167,7 +167,8 @@ export async function PATCH(request, { params }) {
 
     const formattedProject = {
       ...project,
-      client: project.client ? { ...project.client, name: project.client.nome_cliente } : null
+      client: project.client ? { ...project.client, name: project.client.nome_cliente } : null,
+      tags: project.tags ? (typeof project.tags === 'string' ? JSON.parse(project.tags) : project.tags) : []
     };
 
     return apiResponse(formattedProject);

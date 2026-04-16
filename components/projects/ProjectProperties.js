@@ -52,7 +52,8 @@ export default function ProjectProperties({
   const currentStatus = PROJECT_STATUSES.find((s) => s.value === project.status);
   const currentCategory = PROJECT_CATEGORIES.find((c) => c.value === project.category);
   const currentPriority = PRIORITY_LEVELS.find((p) => p.value === project.priority);
-  const currentClient = project.client;
+  const currentClient = project?.client;
+  const safeTags = Array.isArray(project?.tags) ? project.tags : (typeof project?.tags === 'string' ? JSON.parse(project.tags || '[]') : []);
 
   // Agentes vinculados ao projeto
   const linkedAgents = project.projectAgents || [];
@@ -186,10 +187,10 @@ export default function ProjectProperties({
       <PropertyRow label="Tags" icon="🏷️" fieldKey="tags" editingField={editingField} setEditingField={setEditingField}
         value={
           <div className="notion-tags">
-            {(project.tags || []).map((tag, i) => (
+            {safeTags.map((tag, i) => (
               <span key={i} className="notion-tag">{tag}</span>
             ))}
-            {(!project.tags || project.tags.length === 0) && <span className="text-muted">Nenhuma</span>}
+            {safeTags.length === 0 && <span className="text-muted">Nenhuma</span>}
           </div>
         }
       >
@@ -197,7 +198,7 @@ export default function ProjectProperties({
           type="text"
           className="notion-prop-input"
           placeholder="Adicione tags separadas por vírgula"
-          defaultValue={(project.tags || []).join(', ')}
+          defaultValue={safeTags.join(', ')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               const tags = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
