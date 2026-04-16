@@ -131,7 +131,11 @@ export default function ProjectProperties({
         <select
           className="notion-prop-select"
           value={project.clientId || ''}
-          onChange={(e) => { onUpdate({ clientId: e.target.value || null }); setEditingField(null); }}
+          onChange={(e) => { 
+            const val = e.target.value;
+            onUpdate({ clientId: val === '' ? null : val }); 
+            setEditingField(null); 
+          }}
           onBlur={() => setEditingField(null)}
           autoFocus
         >
@@ -150,7 +154,11 @@ export default function ProjectProperties({
           type="date"
           className="notion-prop-input"
           value={project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : ''}
-          onChange={(e) => { onUpdate({ startDate: e.target.value || null }); setEditingField(null); }}
+          onChange={(e) => { 
+            const val = e.target.value;
+            onUpdate({ startDate: val ? val : null }); 
+            setEditingField(null); 
+          }}
           onBlur={() => setEditingField(null)}
           autoFocus
         />
@@ -164,7 +172,11 @@ export default function ProjectProperties({
           type="date"
           className="notion-prop-input"
           value={project.dueDate ? new Date(project.dueDate).toISOString().split('T')[0] : ''}
-          onChange={(e) => { onUpdate({ dueDate: e.target.value || null }); setEditingField(null); }}
+          onChange={(e) => { 
+            const val = e.target.value;
+            onUpdate({ dueDate: val ? val : null }); 
+            setEditingField(null); 
+          }}
           onBlur={() => setEditingField(null)}
           autoFocus
         />

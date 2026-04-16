@@ -108,7 +108,13 @@ export async function PATCH(request, { params }) {
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         if (['startDate', 'startedAt', 'dueDate', 'completedAt'].includes(field)) {
-          data[field] = body[field] ? new Date(body[field]) : null;
+          if (!body[field]) {
+            data[field] = null;
+          } else {
+            const date = new Date(body[field]);
+            // Validar se gerou uma data válida antes de atribuir
+            data[field] = isNaN(date.getTime()) ? undefined : date;
+          }
         } else {
           data[field] = body[field];
         }
@@ -169,7 +175,7 @@ export async function PATCH(request, { params }) {
     if (error.code === 'P2025') {
       return apiError('Projeto não encontrado', 404);
     }
-    console.error('Erro ao atualizar projeto:', error);
+    console.error(`[API PATCH Projects] Erro ao atualizar projeto ${id}:`, error);
     return apiError('Erro ao atualizar projeto', 500);
   }
 }
